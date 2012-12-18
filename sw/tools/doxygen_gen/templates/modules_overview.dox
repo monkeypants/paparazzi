@@ -1,4 +1,4 @@
-/** @page {{ name }} {{ title }}
+/** @page {{ name }} {{ name | replace("_"," ") | title }}
 @tableofcontents
 The modules allow to add new code in a flexible way with initialisation,
 periodic and event functions without modifying the main AP loop.
@@ -6,6 +6,8 @@ Also see http://paparazzi.enac.fr/wiki/Modules
 
 @section modules_list List of available modules
 
-{% for subsection in module_subsections %}
-{{ subsection }}
+{% for (subsection, modules) in subsections %}
+@subsection modules_category_{{ subsection }} {{ subsection | replace("_"," ") | title }} modules
+{% for module in modules %}
+ - {{ module }} @subpage module__{{ module | replace(".xml","") }}{% endfor %}
 {% endfor %}

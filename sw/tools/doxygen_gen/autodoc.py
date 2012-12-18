@@ -5,6 +5,7 @@ import jinja2
 from gen_modules_doc import modules_overview_page
 from gen_modules_doc import module_page
 from gen_modules_doc import read_module_file
+from gen_modules_doc import get_module_dir
 
 def get_paparazzi_home():
     # if PAPARAZZI_HOME not set, then assume the tree containing this
@@ -51,7 +52,27 @@ class PaparazziParser(object):
 
     def module_subsections(self):
         #return list of subsections, which is each a list of modules
-        return ('foo_section','bar_section')
+        dirs = {}
+        for (mfile, m) in self.modules.items():
+            mdir = get_module_dir(m)
+            if mdir not in dirs:
+                dirs[mdir] = {mfile: m}
+            else:
+                dirs[mdir][mfile] = m
+        # what I want here is an OrderedDict
+        subsections = []
+        misc = {}
+        for d in sorted(dirs.keys()):
+            # dir is a subsection if it contains multiple modules
+            if len(dirs[d]) > 1:
+                subsections.append((d, dirs[d]))
+            else:
+                # othewise, lone module belongs in "misc" subsection
+                (mfile, m) = dirs[d].popitem()
+                misc[mfile] = m
+        subsections.append(('misc', misc))
+        return subsections
+
 
 class Generator(object):
     DEFAULT_OUTPUT_FORMAT = "Doxygen"
@@ -61,8 +82,6 @@ class Generator(object):
             output_dir=None,
             create_parents=True):
 
-        # we might want to pass in a parser with non-default
-        # arguments
         if not parser:
             self.parser = PaparazziParser()
         else:
@@ -107,7 +126,7 @@ class Generator(object):
     def generate(self, output_format=None):
         if not output_format:
             output_format = self.DEFAULT_OUTPUT_FORMAT
-        # TODO: test that templates exist for spedictid output_format
+        # TODO: test that templates exist for specified output_format
         
         # WIP.
         modules = self.parser.modules
@@ -118,8 +137,7 @@ class Generator(object):
         
         outstring = template.render(
             name="onboard_modules",
-            title="Onboard Modules",
-            module_subsections = self.parser.module_subsections())
+            subsections = self.parser.module_subsections())
         
         outstring += "************************"
         outstring += modules_overview_page(modules) # TODO: UNROLL/REFACRTOR
