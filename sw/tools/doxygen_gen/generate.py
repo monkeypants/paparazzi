@@ -1,12 +1,6 @@
 import os
 from optparse import OptionParser
-
-from generators import DoxygenGenerator
 import autodoc 
-
-# TODO: refactor these away
-from gen_modules_doc import *
-
 
 def parse_args():
     usage = "Usage: %prog [options] modules/dir" + "\n" 
@@ -32,16 +26,14 @@ def parse_args():
 
 if __name__ == "__main__":
     print "Building Documentation"
-    #dg = DoxygenGenerator(modules=mp.modules)
-    #dg.write(outfile)
-    
     (options, args) = parse_args()
-
+    
     if options.input_dir:
         moddir=None # use default
     else:
         moddir=options.input_dir
-
+    # TODO: test/respect "-p", "-o", "-i" and "-v"
+    # TODO: replace all the printing with logging
     psr = autodoc.PaparazziParser(modules_dir=moddir)
 
     d = autodoc.Generator(parser=psr)
@@ -49,5 +41,3 @@ if __name__ == "__main__":
 
     if options.verbose:
         print("Generating module documentation in " + output_dir)
-
- 

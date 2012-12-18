@@ -2,7 +2,9 @@ import os, sys, glob
 import jinja2
 
 # TODO: refactor these away
-from gen_modules_doc import *
+from gen_modules_doc import modules_overview_page
+from gen_modules_doc import module_page
+from gen_modules_doc import read_module_file
 
 def get_paparazzi_home():
     # if PAPARAZZI_HOME not set, then assume the tree containing this
@@ -52,6 +54,9 @@ class PaparazziParser(object):
                 self.modules[file] = module
         os.chdir(start_cwd) # housekeeping, avoid nasty side effects
 
+    def module_subsections(self):
+        #return list of subsections, which is each a list of modules
+        return ('foo_section','bar_section')
 
 class Generator(object):
     DEFAULT_OUTPUT_FORMAT = "Doxygen"
@@ -61,52 +66,76 @@ class Generator(object):
             output_dir=None,
             create_parents=True):
 
-        # process arguments, apply defaults
+        # we might want to pass in a parser with non-default
+        # arguments
         if not parser:
             self.parser = PaparazziParser()
         else:
             self.parser = parser
+
+        # respect  "-p" cli switch
+        if create_parents:
+            self.create_output_parent_dirs = True
+        else:
+            self.create_output_parent_dirs = False
+
+        # respect "-o" cli swirch
         if output_dir:
             self.output_dir = output_dir
         else:
             self.output_dir = os.path.join(
                 get_paparazzi_home(),
-                "doc/manual")
-        if create_parents:
-            self.create_output_parent_dirs = True
-        else:
-            self.create_output_parent_dirs = False
+                "doc/manual/generated")
+
+        # "-o" and "-p" interact
+        if not os.path.isdir(self.output_dir):
+            msg = "Output directory " + self.output_dir
+            if self.create_output_parent_dirs:
+                # TODO: logging
+                msg += " doesn't exit yet. Creating it." 
+                print(msg)
+                os.makedirs(self.output_dir)
+            else:
+                # TODO: logging
+                print(msg + " not valid.")
+                # TODO: shift sys.exit to caller, here we should just
+                # be throwing an appropriate error
+                sys.exit(1)
+
+        # any output_format uses the same template environment
         self.env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
                 os.path.join(
                     os.path.dirname(__file__),
                     'templates')))
-        self.validate_output_dir()
-        
-    def validate_output_dir(self):
-        if not os.path.isdir(self.output_dir):
-            msg = "Output directory " + self.output_dir
-            if self.create_output_parent_dirs:
-                msg += " doesn't exit yet. Creating it." 
-                print(msg)
-                os.makedirs(self.output_dir)
-            else:
-                print(msg + " not valid.")
-                sys.exit(1)
 
     def generate(self, output_format=None):
         if not output_format:
             output_format = self.DEFAULT_OUTPUT_FORMAT
+        # TODO: test that templates exist for spedictid output_format
+        
         # WIP.
         modules = self.parser.modules
         output_dir = self.output_dir
         # generate overview
-        outstring = modules_overview_page(modules)
+        # TODO: replace this with jinja2 template
+        template = self.env.get_template('modules_overview.dox')
+        
+        outstring = template.render(
+            name="onboard_modules",
+            title="Onboard Modules",
+            module_subsections = self.parser.module_subsections())
+        
+        outstring += "************************"
+        outstring += modules_overview_page(modules) # TODO: UNROLL/REFACRTOR
+
         # generate each module subpage
+        # TODO: replace this with jinja2 template
         for (n, m) in modules.items():
-            outstring += module_page(n, m)
-        #print(outstring)
+            outstring += module_page(n, m) # TODO: UNROLL/REFACTOR
+        # TODO: this should be a function of the output_format
         outfile_name = os.path.join(output_dir, "onboard_modules.dox")
+        # Are we it's always exactly 1 file? No
         with open(outfile_name, 'w') as outfile:
             outfile.write(outstring)
         #use logging instead
