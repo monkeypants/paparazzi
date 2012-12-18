@@ -158,7 +158,7 @@ if __name__ == "__main__":
                 bogus_name += "DEADBEEF" # ROASTBEEF?
             self.assertRaises(
                 InvalidModuleInputDirError,
-    		PaparazziParser,
+                PaparazziParser,
                 modules_dir=bogus_name)
 
     class CLITestCase(unittest.TestCase):
