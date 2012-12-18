@@ -28,15 +28,37 @@ if __name__ == "__main__":
     print "Building Documentation"
     (options, args) = parse_args()
     
-    if options.input_dir:
+    # TODO: "-v", replace all the printing with logging
+
+    # "-p" argument
+    if not options.input_dir:
         moddir=None # use default
     else:
         moddir=options.input_dir
-    # TODO: test/respect "-p", "-o", "-i" and "-v"
-    # TODO: replace all the printing with logging
     psr = autodoc.PaparazziParser(modules_dir=moddir)
 
-    d = autodoc.Generator(parser=psr)
+    # "-p" argument
+    if options.create_parent_dirs:
+        mkparents = True
+    else:
+        mkparents = False
+    # "-o" argumett
+    if not options.output_dir:
+        outdir = False
+    else:
+        outdir=options.output_dir
+    try:
+        d = autodoc.Generator(
+            parser=psr,
+            create_parents=mkparents,
+            output_dir=outdir)
+    except autodoc.InvalidModuleInputDirError:
+        # TODO: use logging
+        msg = "Input directory with modules "
+        msg += psr.modules_dir + " not found."
+        print(msg)
+        sys.exit(1)
+
     d.generate(output_format="Doxygen")
 
     if options.verbose:

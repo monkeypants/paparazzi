@@ -16,6 +16,9 @@ def get_paparazzi_home():
                 os.path.dirname(__file__),
                 '../../../')))
 
+class InvalidModuleInputDirError(Exception):
+    """Specified module_dir is not Valid."""
+
 
 class PaparazziParser(object):
     def __init__(self, modules_dir=None):
@@ -25,21 +28,13 @@ class PaparazziParser(object):
             self.modules_dir = os.path.join(
                 get_paparazzi_home(),
                 "conf/modules")
-
         self.modules = {}
         self.parse_modules()
 
     def parse_modules(self):
-        ### Validate 
-        # should be:
-        #   throwing a locally defined error
-        #   logging debug/warning
-        # it should be up to the main program to sys.exit(1), not here
         if not os.path.isdir(self.modules_dir):
-            msg = "Input directory with modules "
-            msg += modules_dir + " not found."
-            print(msg)
-            sys.exit(1)
+            raise InvalidModuleInputDirError
+
         ### Groundwork? 
         # flush before rescanning
         # info message if self.modules not empty
@@ -154,6 +149,17 @@ if __name__ == "__main__":
     #        - raise a sensible warning
     #
     # use logging
+
+    class PaparazziParserModuleTestCases(unittest.TestCase):
+        def test_module_dir_validation(self):
+            """InvalidModuleInputDirError with invalid modules_dir."""
+            bogus_name = '/delme'
+            while os.path.isdir(bogus_name): # unlikely
+                bogus_name += "DEADBEEF" # ROASTBEEF?
+            self.assertRaises(
+                InvalidModuleInputDirError,
+    		PaparazziParser,
+                modules_dir=bogus_name)
 
     class CLITestCase(unittest.TestCase):
         """Base class for TestCases that validate the CLI program.
