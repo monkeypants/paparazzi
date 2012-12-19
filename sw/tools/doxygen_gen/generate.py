@@ -1,4 +1,5 @@
 import os
+import logging
 from optparse import OptionParser
 import autodoc 
 
@@ -27,14 +28,24 @@ def parse_args():
 if __name__ == "__main__":
     print "Building Documentation"
     (options, args) = parse_args()
-    
-    # TODO: "-v", replace all the printing with logging
 
-    # "-p" argument
+    # "-v"
+    # IDEA: multiple levels of verbosity, DEBUG -> CRITICAL
+    logger = logging.getLogger('autodoc')
+    log_handler = logging.StreamHandler()
+    log_handler.setLevel(logging.DEBUG)
+    logger.addHandler(log_handler)
+    if options.verbose:
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARNING)
+
+    # "-i" argument
     if not options.input_dir:
         moddir=None # use default
     else:
         moddir=options.input_dir
+
     psr = autodoc.PaparazziParser(modules_dir=moddir)
 
     # "-p" argument
@@ -42,24 +53,23 @@ if __name__ == "__main__":
         mkparents = True
     else:
         mkparents = False
-    # "-o" argumett
+
+    # "-o" argumet
     if not options.output_dir:
         outdir = False
     else:
         outdir=options.output_dir
+
     try:
-        d = autodoc.Generator(
+        gen = autodoc.Generator(
             parser=psr,
             create_parents=mkparents,
             output_dir=outdir)
     except autodoc.InvalidModuleInputDirError:
-        # TODO: use logging
         msg = "Input directory with modules "
         msg += psr.modules_dir + " not found."
-        print(msg)
+        logger.critical(msg)
         sys.exit(1)
 
-    d.generate(output_format="Doxygen")
+    gen.modules_doc(output_format="Doxygen")
 
-    if options.verbose:
-        print("Generating module documentation in " + output_dir)

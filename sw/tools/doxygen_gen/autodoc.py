@@ -1,11 +1,25 @@
 import os, sys, glob
+import xml.etree.ElementTree as ET
+
+import logging
 import jinja2
 
 # TODO: refactor these away
 from gen_modules_doc import modules_overview_page
 from gen_modules_doc import module_page
-from gen_modules_doc import read_module_file
-from gen_modules_doc import get_module_dir
+#from gen_modules_doc import get_module_dir
+
+class InvalidModuleInputDirError(Exception):
+    """Specified module_dir is inalid."""
+
+class InvalidOutputDirectoryAndNotCreatingItError(Exception):
+    """Specified output_dir is invalid, and not create_parents_dir."""
+
+class InvalidModuleXMLError(Exception):
+    """autodoc could not parse an invalid module xml file."""
+
+class MalformedModuleXMLError(Exception):
+    """autodoc encountered a malformed module xml file."""
 
 def get_paparazzi_home():
     # if PAPARAZZI_HOME not set, then assume the tree containing this
@@ -17,9 +31,20 @@ def get_paparazzi_home():
                 os.path.dirname(__file__),
                 '../../../')))
 
-class InvalidModuleInputDirError(Exception):
-    """Specified module_dir is not Valid."""
-
+def read_module_file(file):
+    try:
+        tree = ET.parse(file)
+    except ET.ParseError:
+        # TODO: logging
+        print("Error. Xml file {0} is not well formed.".format(file))
+        return None
+    root = tree.getroot()
+    if root.tag != "module":
+        # TODO: logging
+        print("Error. Xml file {0} doesn't have 'module' as root node.".format(file))
+        return None
+    else:
+        return root
 
 class PaparazziParser(object):
     def __init__(self, modules_dir=None):
@@ -29,37 +54,53 @@ class PaparazziParser(object):
             self.modules_dir = os.path.join(
                 get_paparazzi_home(),
                 "conf/modules")
+        self.logger = logging.getLogger('autodoc.PaparazziParser')
         self.modules = {}
         self.parse_modules()
 
     def parse_modules(self):
         if not os.path.isdir(self.modules_dir):
             raise InvalidModuleInputDirError
+        # Ideas:
+        # - flush before rescanning?
+        # - log if self.modules not empty?
+        # - lazy-lookups mechanism?
 
-        ### Groundwork? 
-        # flush before rescanning
-        # info message if self.modules not empty
-        ### Logic
         # get all xml files in modules_dir
         start_cwd = os.getcwd()
         os.chdir(self.modules_dir)
         for file in glob.glob("*.xml"):
-            # debug message in the loop
-            module = read_module_file(file)
+            try:
+                tree = ET.parse(file)
+            except ET.ParseError:
+                msg = "Xml file {0} is not well formed."
+                msg.format(file)
+                self.logger.warning(msg)
+                raise MalformedModuleXMLError
+            root = tree.getroot()
+            if root.tag != "module":
+                msg = "Xml file {0} doesn't have 'module'"
+                msg += "as root node."
+                msg.format(file)
+                self.logger.warning(msg)
+                raise InvalidModuleXMLError
+            else:
+                module = root
             if len(module):
                 self.modules[file] = module
-        os.chdir(start_cwd) # housekeeping, avoid nasty side effects
+        os.chdir(start_cwd) # leave it like you found it
 
     def module_subsections(self):
         #return list of subsections, which is each a list of modules
         dirs = {}
         for (mfile, m) in self.modules.items():
-            mdir = get_module_dir(m)
+            #mdir = get_module_dir(m)
+            mdir =  m.get("dir", m.get("name")).strip()
             if mdir not in dirs:
                 dirs[mdir] = {mfile: m}
             else:
                 dirs[mdir][mfile] = m
-        # what I want here is an OrderedDict
+        # use OrderedDict?
         subsections = []
         misc = {}
         for d in sorted(dirs.keys()):
@@ -81,8 +122,11 @@ class Generator(object):
             self, parser=None,
             output_dir=None,
             create_parents=True):
-
+        self.logger = logging.getLogger('autodoc.Generator')
         if not parser:
+            msg = 'None parser passed to Generator'
+            msg += ', using default' 
+            self.logger.debug(msg)
             self.parser = PaparazziParser()
         else:
             self.parser = parser
@@ -105,16 +149,15 @@ class Generator(object):
         if not os.path.isdir(self.output_dir):
             msg = "Output directory " + self.output_dir
             if self.create_output_parent_dirs:
-                # TODO: logging
                 msg += " doesn't exit yet. Creating it." 
-                print(msg)
+                self.logger.info(msg)
                 os.makedirs(self.output_dir)
             else:
-                # TODO: logging
-                print(msg + " not valid.")
+                self.logger.error(msg + ' not valid')
+                raise InvalidOutputDirectoryAndNotCreatingIts
                 # TODO: shift sys.exit to caller, here we should just
                 # be throwing an appropriate error
-                sys.exit(1)
+                #sys.exit(1)
 
         # any output_format uses the same template environment
         self.env = jinja2.Environment(
@@ -123,9 +166,12 @@ class Generator(object):
                     os.path.dirname(__file__),
                     'templates')))
 
-    def generate(self, output_format=None):
+    def modules_doc(self, output_format=None):
         if not output_format:
-            output_format = self.DEFAULT_OUTPUT_FORMAT
+            self.logger.debug('generate called with output_format=None')
+            fmt = self.DEFAULT_OUTPUT_FORMAT
+            self.logger.debug('using default output_format, %s' % fmt)
+            output_format = fmt
         # TODO: test that templates exist for specified output_format
         
         # WIP.
@@ -151,9 +197,7 @@ class Generator(object):
         # Are we it's always exactly 1 file? No
         with open(outfile_name, 'w') as outfile:
             outfile.write(outstring)
-        #use logging instead
-        #if options.verbose:
-        #    print("Done.")
+        self.logger.info('Finished building module documentation')
 
 if __name__ == "__main__":
     import unittest
