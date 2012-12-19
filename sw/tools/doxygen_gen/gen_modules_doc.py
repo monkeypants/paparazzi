@@ -273,9 +273,10 @@ if __name__ == '__main__':
     # file is a reasonable substitute
     paparazzi_home = os.getenv(
         "PAPARAZZI_HOME",
-        os.path.join(
-            os.path.dirname(__file__),
-            '../../../'))
+        os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                '../../../')))
 
     if options.input_dir:
         modules_dir = options.input_dir
