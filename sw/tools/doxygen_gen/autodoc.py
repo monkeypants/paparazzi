@@ -6,7 +6,7 @@ import jinja2
 
 # TODO: refactor these away
 from gen_modules_doc import modules_overview_page
-from gen_modules_doc import module_page
+from gen_modules_doc import get_module_description
 
 class InvalidModuleInputDirError(Exception):
     """Specified module_dir is inalid."""
@@ -23,6 +23,9 @@ class MalformedModuleXMLError(Exception):
 class MissingTemplateError(Exception):
     """autodoc could not load a template (because it wasn't there)."""
 
+class UnableToParseModuleConfigError(Exception):
+    """autodoc could not parse the module configuration."""
+
 def get_paparazzi_home():
     # if PAPARAZZI_HOME not set, then assume the tree containing this
     # file is a reasonable substitute
@@ -32,6 +35,123 @@ def get_paparazzi_home():
             os.path.join(
                 os.path.dirname(__file__),
                 '../../../')))
+
+class Module(object):
+    """Paparazzi artefact parser relating to a module."""
+    def __init__(self, etree, filename):
+        self.filename = filename
+        self._parse_xml()
+
+    def _parse_xml(self):
+        # move stuff here from parser
+        self.generate_attributes()
+
+    def _generate_attributes(self):
+        self._description()
+        self._configuration()
+        self._functions()
+        self._headers()
+        self._sources()
+
+    '''
+    def module_page(self):
+        (brief, details) = self.description()
+        keyword = filename[:-4].lower()
+        page_name = "module__" + keyword
+        
+        s = dox_new_page(page_name, brief)
+        s += "Module XML file: @c " + filename + "\n\n"
+        s += details + "\n"
+        s += module_configuration(module)
+        s += module_functions(module)
+        s += "@section files Files\n\n"
+        s += headers_list(module)
+        s += sources_list(module)
+        s += "\n@subsection module_xml__{0} Raw {1} file:\n@include {1}\n".format(keyword, filename)
+        s += "\n */\n\n"
+        return s
+    '''
+
+    def _description(self):
+        desc = self.etree.find("./doc/description")
+        details = "No detailed description...\n"
+        if desc is None or desc.text is None:
+            brief = self.etree.get('name').replace('_', ' ').title()
+        else:
+            # treat first line until dot as brief
+            d = re.split(r'\.|\n', desc.text.strip(), 1)
+            brief = d[0].strip()
+            if len(d) > 1:
+                details = d[1].strip()+"\n"
+        self.brief_description = brief
+        self.detailed_description = details
+
+    def _configuration():
+        try:
+            mname = self.etree.get("name","")
+            confs = self.etree.findall("./doc/configure")
+            defines = self.etree.findall("./doc/define")
+            secs = self.etree.findall("./doc/section")
+        except:
+            UnableToParseModuleConfigError
+            
+        if confs:
+            msg = "processing configuration in %s" % self.filename
+            self.configures = {}
+            self.logger.debug(msg)
+            for c in confs:
+                msg = "processing configuration %s in %s" % (
+                    c, self.filename)
+                self.logger.debug(msg)
+                self.configures[c] = {
+                    'name': c.get('name'),
+                    'value': c.get('value'),
+                    'description': c.get('description')}
+        if defines:
+            msg = "processing defines in %s" % self.filename
+            self.defines = {}
+            self.logger.debug(msg)
+            for d in defines:
+                msg = "processing define %s in %s" % (
+                    d, self.filename)
+                self.logger.debug(msg)
+                self.defines[d] = {
+                    'name': d.get('name'),
+                    'value': d.get('value'),
+                    'description': d.get('description')}
+        if secs:
+            msg = "processing sections in %s" % self.filename
+            self.sections = {}
+            self.logger.debug(msg)
+            for s in secs:
+                msg = "processing section %s in %s" % (
+                    s, self.filename)
+                self.logger.debug(msg)
+                defines = {}
+                for d in s.findall("./define"):
+                    defines[d] = {
+                        'name': d.get('name'),
+                        'value': d.get('value'),
+                        'description': d.get('description')}
+                self.sections[s] = {
+                    'name': s.get('name'),
+                    'prefix': s.get('prefix'),
+                    'defines': defines}
+
+
+    def generate_config return "@section configuration Module configuration options\n\n" + doc
+    else:
+        return ""
+
+    def _functions():
+        pass
+
+    def _headers():
+        pass
+
+    def _sources():
+        pass
+
 
 class PaparazziParser(object):
     def __init__(self, modules_dir=None):
@@ -170,19 +290,22 @@ class Generator(object):
         outstring = template.render(
             name="onboard_modules",
             heading="Onboard Modules",
-            subsections = self.parser.module_subsections())
+            subsections = self.parser.module_subsections(),
+            modules = self.parser.modules)
 
         # WIP...
         modules = self.parser.modules
-        output_dir = self.output_dir
-        outstring += "************************"
-        outstring += modules_overview_page(modules) # TODO: UNROLL/REFACRTOR
+        #output_dir = self.output_dir
+        #outstring += "************************"
+        #outstring += modules_overview_page(modules) # TODO: UNROLL/REFACRTOR
 
         # generate each module subpage
         # TODO: replace this with jinja2 template
-        for (n, m) in modules.items():
-            outstring += module_page(n, m) # TODO: UNROLL/REFACTOR
+        #for (n, m) in modules.items():
+        #    outstring += module_page(n, m) # TODO: UNROLL/REFACTOR
         # TODO: this should be a function of the output_format
+
+        
         outfile_name = os.path.join(output_dir, "onboard_modules.dox")
         # Are we it's always exactly 1 file? No
         with open(outfile_name, 'w') as outfile:
