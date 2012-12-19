@@ -7,7 +7,6 @@ import jinja2
 # TODO: refactor these away
 from gen_modules_doc import modules_overview_page
 from gen_modules_doc import module_page
-#from gen_modules_doc import get_module_dir
 
 class InvalidModuleInputDirError(Exception):
     """Specified module_dir is inalid."""
@@ -21,6 +20,9 @@ class InvalidModuleXMLError(Exception):
 class MalformedModuleXMLError(Exception):
     """autodoc encountered a malformed module xml file."""
 
+class MissingTemplateError(Exception):
+    """autodoc could not load a template (because it wasn't there)."""
+
 def get_paparazzi_home():
     # if PAPARAZZI_HOME not set, then assume the tree containing this
     # file is a reasonable substitute
@@ -30,21 +32,6 @@ def get_paparazzi_home():
             os.path.join(
                 os.path.dirname(__file__),
                 '../../../')))
-
-def read_module_file(file):
-    try:
-        tree = ET.parse(file)
-    except ET.ParseError:
-        # TODO: logging
-        print("Error. Xml file {0} is not well formed.".format(file))
-        return None
-    root = tree.getroot()
-    if root.tag != "module":
-        # TODO: logging
-        print("Error. Xml file {0} doesn't have 'module' as root node.".format(file))
-        return None
-    else:
-        return root
 
 class PaparazziParser(object):
     def __init__(self, modules_dir=None):
@@ -117,7 +104,6 @@ class PaparazziParser(object):
 
 class Generator(object):
     DEFAULT_OUTPUT_FORMAT = "Doxygen"
-    
     def __init__(
             self, parser=None,
             output_dir=None,
@@ -131,13 +117,11 @@ class Generator(object):
         else:
             self.parser = parser
 
-        # respect  "-p" cli switch
         if create_parents:
             self.create_output_parent_dirs = True
         else:
             self.create_output_parent_dirs = False
 
-        # respect "-o" cli swirch
         if output_dir:
             self.output_dir = output_dir
         else:
@@ -145,7 +129,6 @@ class Generator(object):
                 get_paparazzi_home(),
                 "doc/manual/generated")
 
-        # "-o" and "-p" interact
         if not os.path.isdir(self.output_dir):
             msg = "Output directory " + self.output_dir
             if self.create_output_parent_dirs:
@@ -155,9 +138,6 @@ class Generator(object):
             else:
                 self.logger.error(msg + ' not valid')
                 raise InvalidOutputDirectoryAndNotCreatingIts
-                # TODO: shift sys.exit to caller, here we should just
-                # be throwing an appropriate error
-                #sys.exit(1)
 
         # any output_format uses the same template environment
         self.env = jinja2.Environment(
@@ -166,25 +146,35 @@ class Generator(object):
                     os.path.dirname(__file__),
                     'templates')))
 
+        # maintain this to match the contents of templates/
+        self.templates = {
+            'modules': {
+                'Doxygen':'modules_overview.dox'}}
+
     def modules_doc(self, output_format=None):
         if not output_format:
             self.logger.debug('generate called with output_format=None')
             fmt = self.DEFAULT_OUTPUT_FORMAT
             self.logger.debug('using default output_format, %s' % fmt)
             output_format = fmt
-        # TODO: test that templates exist for specified output_format
-        
-        # WIP.
-        modules = self.parser.modules
-        output_dir = self.output_dir
-        # generate overview
-        # TODO: replace this with jinja2 template
-        template = self.env.get_template('modules_overview.dox')
-        
+
+        module_templates = self.templates['modules']
+        if output_format not in module_templates.keys():
+            msg = "No module template configured for %s" % output_format
+            self.logger.warning(msg)
+            raise MissingTemplateError
+        else:
+            template_name = self.templates['modules'][output_format]
+        template = self.env.get_template(template_name)
+
         outstring = template.render(
             name="onboard_modules",
+            heading="Onboard Modules",
             subsections = self.parser.module_subsections())
-        
+
+        # WIP...
+        modules = self.parser.modules
+        output_dir = self.output_dir
         outstring += "************************"
         outstring += modules_overview_page(modules) # TODO: UNROLL/REFACRTOR
 
