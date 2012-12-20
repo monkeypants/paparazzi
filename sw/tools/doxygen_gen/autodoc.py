@@ -1,5 +1,6 @@
-import os, sys, glob
+import os, sys, glob, re
 import xml.etree.ElementTree as ET
+import lxml, lxml.etree # for DTD processing
 
 import logging
 import jinja2
@@ -23,8 +24,8 @@ class MalformedModuleXMLError(Exception):
 class MissingTemplateError(Exception):
     """autodoc could not load a template (because it wasn't there)."""
 
-class UnableToParseModuleConfigError(Exception):
-    """autodoc could not parse the module configuration."""
+class UnableToParseModuleError(Exception):
+    """autodoc could not parse the module xml file."""
 
 def get_paparazzi_home():
     # if PAPARAZZI_HOME not set, then assume the tree containing this
@@ -38,67 +39,99 @@ def get_paparazzi_home():
 
 class Module(object):
     """Paparazzi artefact parser relating to a module."""
-    def __init__(self, etree, filename):
+   
+    def __init__(self, filename):
+        """Parse XML then defer to other methods to populate attributes."""
         self.filename = filename
-        self._parse_xml()
-
-    def _parse_xml(self):
-        # move stuff here from parser
-        self.generate_attributes()
-
-    def _generate_attributes(self):
-        self._description()
-        self._configuration()
-        self._functions()
-        self._headers()
-        self._sources()
-
-    '''
-    def module_page(self):
-        (brief, details) = self.description()
-        keyword = filename[:-4].lower()
-        page_name = "module__" + keyword
-        
-        s = dox_new_page(page_name, brief)
-        s += "Module XML file: @c " + filename + "\n\n"
-        s += details + "\n"
-        s += module_configuration(module)
-        s += module_functions(module)
-        s += "@section files Files\n\n"
-        s += headers_list(module)
-        s += sources_list(module)
-        s += "\n@subsection module_xml__{0} Raw {1} file:\n@include {1}\n".format(keyword, filename)
-        s += "\n */\n\n"
-        return s
-    '''
-
-    def _description(self):
-        desc = self.etree.find("./doc/description")
-        details = "No detailed description...\n"
-        if desc is None or desc.text is None:
-            brief = self.etree.get('name').replace('_', ' ').title()
-        else:
-            # treat first line until dot as brief
-            d = re.split(r'\.|\n', desc.text.strip(), 1)
-            brief = d[0].strip()
-            if len(d) > 1:
-                details = d[1].strip()+"\n"
-        self.brief_description = brief
-        self.detailed_description = details
-
-    def _configuration():
+        self.logger = logging.getLogger('autodoc.Module')
         try:
-            mname = self.etree.get("name","")
-            confs = self.etree.findall("./doc/configure")
-            defines = self.etree.findall("./doc/define")
-            secs = self.etree.findall("./doc/section")
+            #tree = ET.parse(filename)
+            tree = lxml.etree.parse(filename)
+        except lxml.etree.ParseError:
+            msg = "Xml file {0} is not well formed."
+            msg.format(file)
+            self.logger.warning(msg)
+            raise MalformedModuleXMLError
+        root = tree.getroot()
+        if root.tag != "module":
+            msg = "Xml file {0} doesn't have 'module'"
+            msg += "as root node."
+            msg.format(file)
+            self.logger.warning(msg)
+            raise InvalidModuleXMLError
+        else:
+            self._etree = root
+
+        dtd_file = os.path.join(
+            os.path.dirname(self.filename), 'module.dtd')
+        dtd = lxml.etree.DTD(dtd_file)
+
+        # seems I need a newer lxml to iterate over dtd.elements()
+        # self.logger.debug(lxml.etree.LXML_VERSION) <- mine is 2.3
+        if not dtd.validate(self._etree):
+            msg = "[Module] %s: is not valid" % self.filename
+            logger.warn(msg)
+
+        # .name
+        try:
+            self.name = self._etree.attrib['name']
+        except KeyError:
+            self.name = "mystery_module"
+
+        # .dir
+        try:
+            self.dir = self._etree.attrib['dir']
+        except KeyError:
+            self.dir = "misc"
+
+        ### DOC element ###
+        for a in self._etree:
+            if a.tag == 'doc':
+                for b in a:
+                    if b.tag == 'description':
+                        desc = b.text
+                        details = "No detailed description...\n"
+                        if desc is None or desc.text is None:
+                            brief = self.name.replace('_', ' ').title()
+                        else:
+                            # treat first line until dot as brief
+                            d = re.split(r'\.|\n', desc.text.strip(), 1)
+                            brief = d[0].strip()
+                            if len(d) > 1:
+                                details = d[1].strip()+"\n"
+                        self.brief_description = brief
+                        self.detailed_description = details                
+            elif a.tag == 'header':
+                pass
+            elif a.tag == 'init':
+                pass
+            elif a.tag == 'periodic':
+                pass
+            elif a.tag == 'makefile':
+                pass
+        """
+        #.brief_description
+        #.detailed_description
+        msg = "[Module]: %s %s %s"
+        desc = doc.get('description')
+        try:
+            msg = msg % (self.name, ' found description ',  desc)
         except:
-            UnableToParseModuleConfigError
-            
+            msg = msg % ('no description found for ', self.name, '')
+            desc = None
+        self.logger.debug(msg)
+        
+        
+
+
+        # Sometimes elementtree methods are used directly, which is OK.
+        # So long as only primative types end up as attribute values.
+        #confs = self.etree_findall("./doc/configure")
+        confs = None
         if confs:
             msg = "processing configuration in %s" % self.filename
-            self.configures = {}
             self.logger.debug(msg)
+            self.configures = {}
             for c in confs:
                 msg = "processing configuration %s in %s" % (
                     c, self.filename)
@@ -107,10 +140,16 @@ class Module(object):
                     'name': c.get('name'),
                     'value': c.get('value'),
                     'description': c.get('description')}
+        else:
+            msg = "%s contains no ./doc/configure" % self.filename
+            self.logger.info(msg)
+
+        #defines = self.etree_findall("./doc/define")
+        defines = None
         if defines:
             msg = "processing defines in %s" % self.filename
-            self.defines = {}
             self.logger.debug(msg)
+            self.defines = {}
             for d in defines:
                 msg = "processing define %s in %s" % (
                     d, self.filename)
@@ -119,10 +158,16 @@ class Module(object):
                     'name': d.get('name'),
                     'value': d.get('value'),
                     'description': d.get('description')}
+        else:
+            msg = "%s contains no ./doc/define" % self.filename
+            self.logger.info(msg)       
+        
+        #secs = self.etree_findall("./doc/section")
+        secs = None
         if secs:
             msg = "processing sections in %s" % self.filename
-            self.sections = {}
             self.logger.debug(msg)
+            self.sections = {}
             for s in secs:
                 msg = "processing section %s in %s" % (
                     s, self.filename)
@@ -137,139 +182,191 @@ class Module(object):
                     'name': s.get('name'),
                     'prefix': s.get('prefix'),
                     'defines': defines}
+        else:
+            msg = "%s contains no ./doc/section" % self.filename
+            self.logger.info(msg)
+    """
+    #    self._functions()
+    #    self._headers()
+    #    self._sources()
+    """
+    def etree_get(self, element_name, default=None):
+        try:
+            value = self._etree.get(element_name)
+            if value is not None:
+                msg = "[Module] %s: found %s=%s"
+                msg = msg % (self.filename, element_name, value)
+                self.logger.debug(self._etree)
+            else:
+                value = default
+                msg = "[Module] %s: no value for '%s'"
+                msg = msg % (self.filename, element_name)
+                self.logger.info(msg)
+                msg = "[Module] %s: using default value, %s=%s"
+                msg = msg % (self.filename, element_name, value)
+            self.logger.debug(msg)
+        except:
+            msg = "Unable to process file %s"
+            msg = msg % (element_name, self.filename)
+            self.logger.critical(msg)
+            raise InvalidModuleXMLError
+       
+        return value
 
-
-    def generate_config return "@section configuration Module configuration options\n\n" + doc
-    else:
-        return ""
-
-    def _functions():
+    def etree_findall(self, element_name):
+        try:
+            found = self._etree.findall(element_name)
+        except:
+            msg = "Unable to findall % from %s"
+            msg = msg % (elenent_name, self.filename)
+            self.logger.critical(msg)
+            raise InvalidModuleXMLError
+        return found
+    
+    def _functions(self):
         pass
 
-    def _headers():
+    def _headers(self):
         pass
 
-    def _sources():
+    def _sources(self):
         pass
-
+    """
 
 class PaparazziParser(object):
     def __init__(self, modules_dir=None):
+        # expect this signature to change
+        self.logger = logging.getLogger('autodoc.PaparazziParser')
         if modules_dir:
             self.modules_dir = modules_dir
         else:
-            self.modules_dir = os.path.join(
-                get_paparazzi_home(),
-                "conf/modules")
-        self.logger = logging.getLogger('autodoc.PaparazziParser')
-        self.modules = {}
-        self.parse_modules()
-
-    def parse_modules(self):
+            self.modules_dir = self.default_modules_dir()
         if not os.path.isdir(self.modules_dir):
             raise InvalidModuleInputDirError
-        # Ideas:
-        # - flush before rescanning?
-        # - log if self.modules not empty?
-        # - lazy-lookups mechanism?
 
-        # get all xml files in modules_dir
-        start_cwd = os.getcwd()
+        # this parser needs a collection of modules
+        start_cwd = os.getcwd() # as farmer's gates you find
+        self.modules = []
         os.chdir(self.modules_dir)
         for file in glob.glob("*.xml"):
-            try:
-                tree = ET.parse(file)
-            except ET.ParseError:
-                msg = "Xml file {0} is not well formed."
-                msg.format(file)
-                self.logger.warning(msg)
-                raise MalformedModuleXMLError
-            root = tree.getroot()
-            if root.tag != "module":
-                msg = "Xml file {0} doesn't have 'module'"
-                msg += "as root node."
-                msg.format(file)
-                self.logger.warning(msg)
-                raise InvalidModuleXMLError
-            else:
-                module = root
-            if len(module):
-                self.modules[file] = module
-        os.chdir(start_cwd) # leave it like you found it
+            self.modules.append(Module(file))
+        os.chdir(start_cwd) # leave them you should
 
-    def module_subsections(self):
-        #return list of subsections, which is each a list of modules
-        dirs = {}
-        for (mfile, m) in self.modules.items():
-            #mdir = get_module_dir(m)
-            mdir =  m.get("dir", m.get("name")).strip()
-            if mdir not in dirs:
-                dirs[mdir] = {mfile: m}
-            else:
-                dirs[mdir][mfile] = m
-        # use OrderedDict?
-        subsections = []
-        misc = {}
-        for d in sorted(dirs.keys()):
-            # dir is a subsection if it contains multiple modules
-            if len(dirs[d]) > 1:
-                subsections.append((d, dirs[d]))
-            else:
-                # othewise, lone module belongs in "misc" subsection
-                (mfile, m) = dirs[d].popitem()
-                misc[mfile] = m
-        subsections.append(('misc', misc))
-        return subsections
+        # also, sorted into groups
+        self.module_dirs = {'misc':[]}
+        for m in self.modules:
+            self.logger.debug(m.dir)
+            if not self.module_dirs.has_key(m.dir):
+                self.module_dirs[m.dir] = []
+            self.module_dirs[m.dir].append(m)
+        # now shift lonly ones to misc
+        for d in self.module_dirs.keys():
+            if d.lower() != 'misc':
+                if len(self.module_dirs[d]) == 1:
+                    self.module_dirs['misc'].append(
+                        self.module_dirs[d])
+                    del(self.module_dirs[d])
+
+    @classmethod
+    def default_modules_dir(self):
+        return os.path.join(
+            get_paparazzi_home(),
+            "conf/modules")
 
 
 class Generator(object):
+    """Creates documentation using pluggable templates.
+
+    Renders jinja2 templates to the output_dir, using the parser
+    as context. If no parser is passed in, it creates a default one.
+
+    Simple changes to the generated content (e.g. formatting) can
+    be achieved by editing the template, as can more complicated
+    changes (so long as the required information is available from
+    the parser).
+
+    To create a new output format, make the appropriate template(s)
+    and register them with the generator by editing self.templates
+    """
     DEFAULT_OUTPUT_FORMAT = "Doxygen"
+    DEFAULT_OUTPUT_PATH = "doc/manual/generated"
+    DEFAULT_TEMPLATE_PATH = "templates"
+
     def __init__(
             self, parser=None,
             output_dir=None,
             create_parents=True):
+        """Sets up parser, output and template system."""
+        
         self.logger = logging.getLogger('autodoc.Generator')
+        
         if not parser:
-            msg = 'None parser passed to Generator'
-            msg += ', using default' 
+            msg = 'Generator; None parser received, using default.' 
             self.logger.debug(msg)
             self.parser = PaparazziParser()
         else:
             self.parser = parser
 
+        msg = "Generator; %s create output_dir parents"
         if create_parents:
+            self.logger.debug(msg % "will")
             self.create_output_parent_dirs = True
         else:
+            self.logger.debug(msg % "will not")
             self.create_output_parent_dirs = False
 
+        msg = "Generator; using output_dir %s"
         if output_dir:
+            self.logger.debug(msg % output_dir)
             self.output_dir = output_dir
         else:
-            self.output_dir = os.path.join(
-                get_paparazzi_home(),
-                "doc/manual/generated")
+            od = self.default_output_dir()
+            self.logger.debug(msg % ("%s [default]" % od,))
+            self.output_dir = od
 
+        # validate output_dir
         if not os.path.isdir(self.output_dir):
-            msg = "Output directory " + self.output_dir
+            msg = "Generator; Output directory " + self.output_dir
             if self.create_output_parent_dirs:
-                msg += " doesn't exit yet. Creating it." 
+                msg += " doesn't exit yet. Creating it, OK." 
                 self.logger.info(msg)
                 os.makedirs(self.output_dir)
             else:
-                self.logger.error(msg + ' not valid')
-                raise InvalidOutputDirectoryAndNotCreatingIts
+                self.logger.error(msg + ' is not valid.')
+                raise InvalidOutputDirectoryAndNotCreatingItError
+        else:
+            msg = "Output directory already exists."
+            self.logger.debug(msg)
 
         # any output_format uses the same template environment
+        # TODO: parameters for chosing a different template path
         self.env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
                 os.path.join(
                     os.path.dirname(__file__),
-                    'templates')))
+                    self.DEFAULT_TEMPLATE_PATH)))
 
-        # maintain this to match the contents of templates/
+        ### MAINTAIN THIS ###
+        # to reflect the actual templates.
+        #
+        # Obviously, there is some opportunity to expand...
+        #  - configuration-driven unit testing framework
+        #  - wiki markup (replace ../wiki_gen)
+        #  - reStructured text, CI build to readthedocs.org...
+        #  - reStructured text, with sphinx/breathe
+        #  - markdown -> github
+        #  - LaTex (why? :)
+        #  - rulebases for logic programming
+        #
         self.templates = {
             'modules': {
                 'Doxygen':'modules_overview.dox'}}
+
+    @classmethod
+    def default_output_dir(self):
+        return os.path.join(
+            get_paparazzi_home(),
+            self.DEFAULT_OUTPUT_PATH)
 
     def modules_doc(self, output_format=None):
         if not output_format:
@@ -290,26 +387,20 @@ class Generator(object):
         outstring = template.render(
             name="onboard_modules",
             heading="Onboard Modules",
-            subsections = self.parser.module_subsections(),
-            modules = self.parser.modules)
-
-        # WIP...
-        modules = self.parser.modules
-        #output_dir = self.output_dir
-        #outstring += "************************"
-        #outstring += modules_overview_page(modules) # TODO: UNROLL/REFACRTOR
-
-        # generate each module subpage
-        # TODO: replace this with jinja2 template
-        #for (n, m) in modules.items():
-        #    outstring += module_page(n, m) # TODO: UNROLL/REFACTOR
-        # TODO: this should be a function of the output_format
-
+            modules = self.parser.modules,
+            module_dirs = self.parser.module_dirs)
         
-        outfile_name = os.path.join(output_dir, "onboard_modules.dox")
+        ### bad stuff ###
+        # TODO: this should be a function of the output_format
+        # i.e. this is BAD
+        outfile_name = os.path.join(
+            self.output_dir,
+            "onboard_modules.dox")
         # Are we it's always exactly 1 file? No
         with open(outfile_name, 'w') as outfile:
             outfile.write(outstring)
+        ### end of bad stuff ###
+        
         self.logger.info('Finished building module documentation')
 
 if __name__ == "__main__":
