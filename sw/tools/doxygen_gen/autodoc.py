@@ -3,7 +3,12 @@ import xml.etree.ElementTree as ET
 import lxml, lxml.etree # for DTD processing
 
 import logging
-import jinja2
+try:
+    import jinja2
+except:
+    # I don't have any idea if this will work
+    # but i'm forced to try as I currently don't have an internet connection
+    import jinja as jinja2
 
 # TODO: refactor these away
 from gen_modules_doc import modules_overview_page
@@ -38,7 +43,25 @@ def get_paparazzi_home():
                 '../../../')))
 
 class Module(object):
-    """Paparazzi artefact parser relating to a module."""
+    """Paparazzi artefact parser relating to a module.
+
+    Current implementation has hardcoced knowledge about the expected
+    structure of a paparazzi module. This is a duplicate of the dtd,
+    and it should also be possible to inferr it from the xml. In other
+    words, this is largely redundant code.
+
+    Another problem with this module is that it should provide a pythonic
+    interface to the parsed module. In other words, something (the template
+    rendering context) should be able to access information about the module
+    from attributes of this representation of it.
+
+    I thought that I should rewrite this as some sort of metaclass hack,
+    that created a class with the relevant members, then instantiated
+    it with the contents of a parsed module. That was some interesting reading,
+    but it turn's out someone already made the lxml.objectify module which
+    does thiS. Oh well.
+
+    """
    
     def __init__(self, filename):
         """Parse XML then defer to other methods to populate attributes."""
@@ -91,7 +114,8 @@ class Module(object):
                     if b.tag == 'description':
                         desc = b.text
                         details = "No detailed description...\n"
-                        if desc is None or desc.text is None:
+                        if desc is None or not hasattr(desc, 'text') \
+                                or desc.text is None:
                             brief = self.name.replace('_', ' ').title()
                         else:
                             # treat first line until dot as brief
@@ -109,131 +133,38 @@ class Module(object):
                 pass
             elif a.tag == 'makefile':
                 pass
-        """
-        #.brief_description
-        #.detailed_description
-        msg = "[Module]: %s %s %s"
-        desc = doc.get('description')
-        try:
-            msg = msg % (self.name, ' found description ',  desc)
-        except:
-            msg = msg % ('no description found for ', self.name, '')
-            desc = None
-        self.logger.debug(msg)
-        
-        
-
-
-        # Sometimes elementtree methods are used directly, which is OK.
-        # So long as only primative types end up as attribute values.
-        #confs = self.etree_findall("./doc/configure")
-        confs = None
-        if confs:
-            msg = "processing configuration in %s" % self.filename
-            self.logger.debug(msg)
-            self.configures = {}
-            for c in confs:
-                msg = "processing configuration %s in %s" % (
-                    c, self.filename)
-                self.logger.debug(msg)
-                self.configures[c] = {
-                    'name': c.get('name'),
-                    'value': c.get('value'),
-                    'description': c.get('description')}
-        else:
-            msg = "%s contains no ./doc/configure" % self.filename
-            self.logger.info(msg)
-
-        #defines = self.etree_findall("./doc/define")
-        defines = None
-        if defines:
-            msg = "processing defines in %s" % self.filename
-            self.logger.debug(msg)
-            self.defines = {}
-            for d in defines:
-                msg = "processing define %s in %s" % (
-                    d, self.filename)
-                self.logger.debug(msg)
-                self.defines[d] = {
-                    'name': d.get('name'),
-                    'value': d.get('value'),
-                    'description': d.get('description')}
-        else:
-            msg = "%s contains no ./doc/define" % self.filename
-            self.logger.info(msg)       
-        
-        #secs = self.etree_findall("./doc/section")
-        secs = None
-        if secs:
-            msg = "processing sections in %s" % self.filename
-            self.logger.debug(msg)
-            self.sections = {}
-            for s in secs:
-                msg = "processing section %s in %s" % (
-                    s, self.filename)
-                self.logger.debug(msg)
-                defines = {}
-                for d in s.findall("./define"):
-                    defines[d] = {
-                        'name': d.get('name'),
-                        'value': d.get('value'),
-                        'description': d.get('description')}
-                self.sections[s] = {
-                    'name': s.get('name'),
-                    'prefix': s.get('prefix'),
-                    'defines': defines}
-        else:
-            msg = "%s contains no ./doc/section" % self.filename
-            self.logger.info(msg)
-    """
-    #    self._functions()
-    #    self._headers()
-    #    self._sources()
-    """
-    def etree_get(self, element_name, default=None):
-        try:
-            value = self._etree.get(element_name)
-            if value is not None:
-                msg = "[Module] %s: found %s=%s"
-                msg = msg % (self.filename, element_name, value)
-                self.logger.debug(self._etree)
-            else:
-                value = default
-                msg = "[Module] %s: no value for '%s'"
-                msg = msg % (self.filename, element_name)
-                self.logger.info(msg)
-                msg = "[Module] %s: using default value, %s=%s"
-                msg = msg % (self.filename, element_name, value)
-            self.logger.debug(msg)
-        except:
-            msg = "Unable to process file %s"
-            msg = msg % (element_name, self.filename)
-            self.logger.critical(msg)
-            raise InvalidModuleXMLError
-       
-        return value
-
-    def etree_findall(self, element_name):
-        try:
-            found = self._etree.findall(element_name)
-        except:
-            msg = "Unable to findall % from %s"
-            msg = msg % (elenent_name, self.filename)
-            self.logger.critical(msg)
-            raise InvalidModuleXMLError
-        return found
-    
-    def _functions(self):
-        pass
-
-    def _headers(self):
-        pass
-
-    def _sources(self):
-        pass
-    """
+            # removed a whold bunch of commented out stuff here
+            # it shouldn't need replacing when I start using lxml.objectify
 
 class PaparazziParser(object):
+    """Inspects the paparazzi sources and generate representations of it.
+
+    Currently only knows about modules, but should obviously be extended to
+    know about airframes, subsystems, etc.
+
+    The more that's added to it, the more that it should be responsible for
+    discovering linkages between code and configuration artefacts. Eventually,
+    it should probably be replaced with some logic programming. I.e. evolve
+    into three parts:
+
+     * A true parser, that populates a graph of convenience objects representing
+       the paparazzi tree
+     * a "knowledge harvester" that generates logical assertions about those
+       representations, using an ontology.
+     * an reasoner that decorates the object graph with inferencially derived
+       information.
+
+    That way, the templates would be able to render semanic links between
+    objects (not just structual ones). Increasing the semantic richness of
+    generated docs would have three parts. 
+
+     1. Add new concepts to the ontology
+     2. Teach the knowledge harvester to pick them up
+     3. Use the new information in the templates
+
+    Well, that's a fine theory :)
+
+    """
     def __init__(self, modules_dir=None):
         # expect this signature to change
         self.logger = logging.getLogger('autodoc.PaparazziParser')
@@ -403,90 +334,3 @@ class Generator(object):
         
         self.logger.info('Finished building module documentation')
 
-if __name__ == "__main__":
-    import unittest
-    import subprocess
-
-    # get_paparazzi_home
-    #    - if PAPARAZZI_HOME set, return it
-    #    - for various cwd's
-    #      - if PAPARAZZI_HOME not set
-    #        - return a sensible guess
-    #        - raise a sensible warning
-    #
-    # use logging
-
-    class PaparazziParserModuleTestCases(unittest.TestCase):
-        def test_module_dir_validation(self):
-            """InvalidModuleInputDirError with invalid modules_dir."""
-            bogus_name = '/delme'
-            while os.path.isdir(bogus_name): # unlikely
-                bogus_name += "DEADBEEF" # ROASTBEEF?
-            self.assertRaises(
-                InvalidModuleInputDirError,
-                PaparazziParser,
-                modules_dir=bogus_name)
-
-    class CLITestCase(unittest.TestCase):
-        """Base class for TestCases that validate the CLI program.
-
-        Defines convenience methods for interacting with the CLI.
-        Abstracts interaction with CLI; consolidates assuptions
-        about arguments, file system, etc.
-        """
-        program_name = "generate.py"
-
-        def get_prog_name(self):
-            # assume the test suite is adjacent to the program
-            d = os.path.dirname(os.path.abspath(__file__))
-            return os.path.join(d, self.program_name)
-
-        def get_cmd_argv(self, p=False):
-            argv = ['python', self.get_prog_name()]
-            if p:
-                argv.append("-p")
-            return argv
-
-        def get_cmd_string(self):
-            cmd = self.get_cmd_argv()
-            argv0 = cmd.pop()
-            argv1 = cmd.pop()
-            cmd_str = "%s %s" % (argv0, argv1)
-            for a in cmd:
-                cmd_str += " %s" % a
-            return cmd_str
-
-    class TestOutputFile(CLITestCase):
-        reldirs=(
-            '.', '../', '../../',
-            'sw', 'sw/tools',
-            'sw/tools/doxygen_gen',
-            'doc', 'doc/manual',
-            'doc/manual/generated',
-            'DELETE_THIS_DIRECTORY/THIS_FILE_WILL_BREAK_TESTS')
-        absdirs = ('/','/tmp')
-
-        def gen_dirs(self):
-            ph = get_paparazzi_home()
-            out = []
-            for d in self.reldirs:
-                out.append(os.path.join(ph, d))
-            for d in self.absdirs:
-                out.append(d)
-            return tuple(out)
-
-        def test_generate_executes_from_anywhere(self):
-            """Matter not from where the CLI program is run."""
-            argv = self.get_cmd_argv(p=True)
-            devnull = open('/dev/null','w') # Yes, UNIX specific.
-            for d in self.gen_dirs():
-                if os.path.exists(d):
-                    os.chdir(d)
-                    try:
-                        subprocess.check_call(argv, stdout=devnull)
-                    except subprocess.CalledProcessError:
-                        self.fail(
-                            'unable to run from %s: %s' % 
-                                (d, self.get_cmd_string()))
-
-    unittest.main()

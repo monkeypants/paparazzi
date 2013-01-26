@@ -70,7 +70,6 @@ if __name__ == "__main__":
 
     psr = autodoc.PaparazziParser(modules_dir=moddir)
 
-
     if options.create_parent_dirs:
         mkparents = True
     else:
