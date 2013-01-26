@@ -1,6 +1,33 @@
 import unittest
 from autodoc import *
 
+class GetPaparazziHomeTestCase(unittest.TestCase):
+    """This should work regardless if PAPARAZZI_HOME is actually set."""
+
+    def setUp(self):
+        hardcode_path = '../../../'
+        self.orig_home = os.getenv('PAPARAZZI_HOME',None)
+        self.expected = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                hardcode_path))
+
+    def tearDown(self):
+        if self.orig_home:
+            os.putenv('PAPARAZZI_HOME', self.orig_home)
+
+    def test_without_PAPARAZZI_HOME(self):
+        # we expect/assume this file is in a specific place, relative
+        # to the sensible default PAPARAZZI_HOME
+        os.unsetenv('PAPARAZZI_HOME')
+        found = get_paparazzi_home()
+        self.assertEqual(found, self.expected)
+
+    def test_with_PAPARAZZI_HOME(self):
+        os.putenv('PAPARAZZI_HOME', self.expected) 
+        found = get_paparazzi_home()
+        self.assertEqual(found, self.expected)
+
 '''
 # todo: test these errors are raised as required
 * InvalidModuleInputDirError
@@ -12,14 +39,17 @@ from autodoc import *
 '''
 
 
-# get_paparazzi_home():
-''' to test this, stash PAPARAZZI_HOME (if set)
-then unset it. Then ensure we return ../../../
-serving as documentation that we expect this file
-to be located in a specific place
+class PaparazziParserModuleTestCases(unittest.TestCase):
+    def test_module_dir_validation(self):
+        """InvalidModuleInputDirError with invalid modules_dir."""
+        bogus_name = '/delme'
+        while os.path.isdir(bogus_name): # unlikely
+            bogus_name += "DEADBEEF" # ROASTBEEF?
+        self.assertRaises(
+            InvalidModuleInputDirError,
+            PaparazziParser,
+            modules_dir=bogus_name)
 
-Then, set it to foo and expect to have foo .
-'''
 
 #
 ### Module
@@ -216,16 +246,6 @@ class Generator(object):
 '''
 
 
-class PaparazziParserModuleTestCases(unittest.TestCase):
-    def test_module_dir_validation(self):
-        """InvalidModuleInputDirError with invalid modules_dir."""
-        bogus_name = '/delme'
-        while os.path.isdir(bogus_name): # unlikely
-            bogus_name += "DEADBEEF" # ROASTBEEF?
-        self.assertRaises(
-            InvalidModuleInputDirError,
-            PaparazziParser,
-            modules_dir=bogus_name)
 
 if __name__ == "__main__":
     unittest.main()
