@@ -25,11 +25,13 @@ ifeq ($(NORADIO), False)
 # default to PA.01 (Servo 6 on Lisa/M) if not already defined
         RADIO_CONTROL_PPM_PIN ?= PA_01
     ifeq ($(RADIO_CONTROL_PPM_PIN),$(filter $(RADIO_CONTROL_PPM_PIN),PA_10 UART1_RX))
-      ap.CFLAGS += -DUSE_TIM1_IRQ
-      fbw.CFLAGS += -DUSE_TIM1_IRQ
+      ap.CFLAGS += -DUSE_PPM_TIM1
+      fbw.CFLAGS += -DUSE_PPM_TIM1
     else ifeq ($(RADIO_CONTROL_PPM_PIN),$(filter $(RADIO_CONTROL_PPM_PIN),PA_01 SERVO6))
-      ap.CFLAGS += -DUSE_TIM2_IRQ
-      fbw.CFLAGS += -DUSE_TIM2_IRQ
+# TIM2 is used by ADC by default, tell it to use TIM1 instead
+# (also see sw/airborne/arch/stm32/TIM_usage_list.txt)
+      ap.CFLAGS += -DUSE_PPM_TIM2 -DUSE_AD_TIM1
+      fbw.CFLAGS += -DUSE_PPM_TIM2 -DUSE_AD_TIM1
     else
         $(error unknown configuration for RADIO_CONTROL_PPM_PIN)
     endif

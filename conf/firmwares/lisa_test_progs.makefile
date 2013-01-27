@@ -178,8 +178,12 @@ test_baro.CFLAGS += $(COMMON_TELEMETRY_CFLAGS)
 test_baro.srcs   += $(COMMON_TELEMETRY_SRCS)
 
 test_baro.CFLAGS += -I$(SRC_LISA) -I$(SRC_BOARD)
-test_baro.srcs   += $(SRC_BOARD)/test_baro.c
+test_baro.srcs   += $(SRC_LISA)/test_baro.c
+ifeq ($(BOARD), lisa_l)
 test_baro.srcs   += $(SRC_BOARD)/baro_board.c
+else
+test_baro.srcs   += $(SRC_BOARD)/baro_board_i2c.c
+endif
 test_baro.CFLAGS += -DUSE_I2C2
 test_baro.srcs   += mcu_periph/i2c.c $(SRC_ARCH)/mcu_periph/i2c_arch.c
 
@@ -241,7 +245,7 @@ test_rc_ppm.CFLAGS += -DRADIO_CONTROL_TYPE_PPM
 test_rc_ppm.srcs   += $(SRC_SUBSYSTEMS)/radio_control.c
 test_rc_ppm.srcs   += $(SRC_SUBSYSTEMS)/radio_control/ppm.c
 test_rc_ppm.srcs   += $(SRC_ARCH)/subsystems/radio_control/ppm_arch.c
-test_rc_ppm.CFLAGS += -DUSE_TIM2_IRQ
+test_rc_ppm.CFLAGS += -DUSE_PPM_TIM2
 
 
 
@@ -263,7 +267,6 @@ test_adc.CFLAGS += -I$(SRC_LISA)
 test_adc.srcs   += $(SRC_LISA)/test_adc.c
 test_adc.srcs   += $(SRC_ARCH)/mcu_periph/adc_arch.c
 test_adc.CFLAGS += -DUSE_AD1 -DUSE_AD1_1 -DUSE_AD1_2 -DUSE_AD1_3 -DUSE_AD1_4
-test_adc.CFLAGS += -DUSE_ADC1_2_IRQ_HANDLER
 
 
 ##################################################
@@ -349,7 +352,7 @@ test_imu_b2_2.srcs   += $(IMU_B2_2_SRCS)
 #
 # test IMU aspirin
 #
-IMU_ASPIRIN_CFLAGS = -DIMU_TYPE_H=\"imu/imu_aspirin.h\" -DIMU_ASPIRIN_VERSION_1_0
+IMU_ASPIRIN_CFLAGS = -DIMU_TYPE_H=\"imu/imu_aspirin.h\" -DIMU_ASPIRIN_VERSION_1_5
 IMU_ASPIRIN_SRCS   = $(SRC_SUBSYSTEMS)/imu.c             \
                      $(SRC_SUBSYSTEMS)/imu/imu_aspirin.c \
                      $(SRC_ARCH)/subsystems/imu/imu_aspirin_arch.c \

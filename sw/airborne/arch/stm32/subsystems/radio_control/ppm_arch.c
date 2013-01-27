@@ -48,7 +48,7 @@ uint32_t ppm_last_pulse_time;
 bool_t   ppm_data_valid;
 static uint32_t timer_rollover_cnt;
 
-#ifdef USE_TIM2_IRQ
+#if USE_PPM_TIM2
 
 #pragma message "Using PPM input on SERVO6 pin!"
 
@@ -63,7 +63,7 @@ static uint32_t timer_rollover_cnt;
 #define PPM_GPIO_PORT		GPIOA
 #define PPM_GPIO_PIN		GPIO1
 
-#elif defined USE_TIM1_IRQ
+#elif USE_PPM_TIM1
 
 #pragma message "Using PPM input on UART1_RX pin!"
 
@@ -104,7 +104,13 @@ void ppm_arch_init ( void ) {
      The external signal is connected to TIM2 CH2 pin (PA.01)
      The Rising edge is used as active edge,
   ------------------------------------------------------------ */
+#if defined PPM_PULSE_TYPE && PPM_PULSE_TYPE == PPM_PULSE_TYPE_POSITIVE
   timer_ic_set_polarity(PPM_TIMER, PPM_CHANNEL, TIM_IC_RISING);
+#elif defined PPM_PULSE_TYPE && PPM_PULSE_TYPE == PPM_PULSE_TYPE_NEGATIVE
+  timer_ic_set_polarity(PPM_TIMER, PPM_CHANNEL, TIM_IC_FALLING);
+#else
+#error "ppm_arch.c: Unknown PM_PULSE_TYPE"
+#endif
   timer_ic_set_input(PPM_TIMER, PPM_CHANNEL, PPM_TIMER_INPUT);
   timer_ic_set_prescaler(PPM_TIMER, PPM_CHANNEL, TIM_IC_PSC_OFF);
   timer_ic_set_filter(PPM_TIMER, PPM_CHANNEL, TIM_IC_OFF);
@@ -133,7 +139,7 @@ void ppm_arch_init ( void ) {
 
 }
 
-#ifdef USE_TIM2_IRQ
+#if USE_PPM_TIM2
 
 void tim2_isr(void) {
 
@@ -150,7 +156,7 @@ void tim2_isr(void) {
 
 }
 
-#elif defined (USE_TIM1_IRQ)
+#elif USE_PPM_TIM1
 
 void tim1_up_isr(void) {
   if((TIM1_SR & TIM_SR_UIF) != 0) {
