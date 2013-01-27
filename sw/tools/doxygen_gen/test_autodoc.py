@@ -5,6 +5,13 @@ class GetPaparazziHomeTestCase(unittest.TestCase):
     """This should work regardless if PAPARAZZI_HOME is actually set."""
 
     def setUp(self):
+        """prepare to undo changes to the environment.
+        
+        Should I be using PAPARAZZI_SRC for any of this?
+
+        Also, populate "expected" here because we use it more than once.
+
+        """
         hardcode_path = '../../../'
         self.orig_home = os.getenv('PAPARAZZI_HOME',None)
         self.expected = os.path.abspath(
@@ -13,8 +20,15 @@ class GetPaparazziHomeTestCase(unittest.TestCase):
                 hardcode_path))
 
     def tearDown(self):
+        """restore the environment if the test may have mangled it."""
         if self.orig_home:
+            # we found it set, so restore it
             os.putenv('PAPARAZZI_HOME', self.orig_home)
+        else:
+            # we did not find it set
+            if os.getenv('PAPARAZZI_HOME', None):
+                # so, if it's set now, then unset it
+                os.unsetenv('PAPARAZZI_HOME')
 
     def test_without_PAPARAZZI_HOME(self):
         # we expect/assume this file is in a specific place, relative
@@ -244,7 +258,6 @@ class Generator(object):
         
         self.logger.info('Finished building module documentation')
 '''
-
 
 
 if __name__ == "__main__":
