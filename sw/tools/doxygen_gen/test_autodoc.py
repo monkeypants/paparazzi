@@ -1,11 +1,13 @@
 import unittest
+import tempfile
+
 from autodoc import *
 
 class GetPaparazziHomeTestCase(unittest.TestCase):
     """This should work regardless if PAPARAZZI_HOME is actually set."""
 
     def setUp(self):
-        """prepare to undo changes to the environment.
+        """Prepare to undo changes to the environment.
         
         Should I be using PAPARAZZI_SRC for any of this?
 
@@ -20,7 +22,7 @@ class GetPaparazziHomeTestCase(unittest.TestCase):
                 hardcode_path))
 
     def tearDown(self):
-        """restore the environment if the test may have mangled it."""
+        """Restore the environment if the test may have mangled it."""
         if self.orig_home:
             # we found it set, so restore it
             os.putenv('PAPARAZZI_HOME', self.orig_home)
@@ -54,15 +56,32 @@ class GetPaparazziHomeTestCase(unittest.TestCase):
 
 
 class PaparazziParserModuleTestCases(unittest.TestCase):
-    def test_module_dir_validation(self):
-        """InvalidModuleInputDirError with invalid modules_dir."""
+    def test_module_dir_validation_non_existant(self):
+        """Raise InvalidModuleInputDirError if  modules_dir doesn't exist.
+
+        The PaparazziParser can (optionally) be passed a modules_dir parameter.
+        If it is, it must be the path of a directory that exist.
+        """
         bogus_name = '/delme'
-        while os.path.isdir(bogus_name): # unlikely
-            bogus_name += "DEADBEEF" # ROASTBEEF?
+        # humerously pad hardcoded bogus directory name, as required to
+        # ensure that it doesn't exist.
+        while os.path.exists(bogus_name):
+            bogus_name += "ROASTBEEF"
         self.assertRaises(
             InvalidModuleInputDirError,
             PaparazziParser,
             modules_dir=bogus_name)
+    def test_module_dir_validation_non_dir(self):
+        """Raise InvalidModuleInputDirError if modules_dir isn't a dir"""
+        # create an empty, non-directory file
+        tmpfp, tmpfname = tempfile.mkstemp()
+        # it's not a dir, therefore invalid as a modules_dir
+        self.assertRaises(
+            InvalidModuleInputDirError,
+            PaparazziParser,
+            modules_dir=tmpfname)
+        # clean up after yourself
+        os.unlink(tmpfname)
 
 
 #
