@@ -125,8 +125,7 @@ endif
 #
 ns_srcs 		+= mcu_periph/uart.c
 ns_srcs 		+= $(SRC_ARCH)/mcu_periph/uart_arch.c
-ns_srcs 		+= subsystems/settings.c
-ns_srcs 		+= $(SRC_ARCH)/subsystems/settings_arch.c
+
 
 #
 # ANALOG
@@ -160,13 +159,15 @@ ap_srcs 		+= $(SRC_FIRMWARE)/main_ap.c
 ap_srcs 		+= $(SRC_FIRMWARE)/autopilot.c
 ap_srcs			+= $(SRC_FIRMWARE)/ap_downlink.c
 ap_srcs 		+= state.c
+ap_srcs 		+= subsystems/settings.c
+ap_srcs 		+= $(SRC_ARCH)/subsystems/settings_arch.c
 
 # BARO
 ifeq ($(BOARD), umarim)
 ifeq ($(BOARD_VERSION), 1.0)
 ap_srcs 	+= boards/umarim/baro_board.c
 ap_CFLAGS += -DUSE_I2C1 -DUSE_ADS1114_1
-ap_CFLAGS += -DADS1114_I2C_DEVICE=i2c1
+ap_CFLAGS += -DADS1114_I2C_DEV=i2c1
 ap_srcs 	+= peripherals/ads1114.c
 endif
 else ifeq ($(BOARD), lisa_l)

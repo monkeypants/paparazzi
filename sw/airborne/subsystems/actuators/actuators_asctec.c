@@ -142,9 +142,11 @@ void actuators_asctec_set(bool_t motors_on) {
 #if defined ACTUATORS_START_DELAY && ! defined SITL
   if (!actuators_delay_done) {
     if (SysTimeTimer(actuators_delay_time) < USEC_OF_SEC(ACTUATORS_START_DELAY)) {
+#ifdef USE_I2C_ACTUATORS_REBOOT_HACK
       //Lisa-L with Asctech v2 motors only start after reflashing when a bus error was sensed on stm32-i2c.
       //multiple re-init solves the problem.
       i2c1_init();
+#endif
       return;
     }
     else actuators_delay_done = TRUE;
@@ -172,12 +174,42 @@ void actuators_asctec_set(bool_t motors_on) {
   actuators_asctec.i2c_trans.buf[3] = 0;
   actuators_asctec.i2c_trans.buf[4] = 0xAA;
 #else
-  actuators_asctec.i2c_trans.buf[0] = actuators_asctec.cmds[SERVO_FRONT];
-  actuators_asctec.i2c_trans.buf[1] = actuators_asctec.cmds[SERVO_BACK];
-  actuators_asctec.i2c_trans.buf[2] = actuators_asctec.cmds[SERVO_LEFT];
-  actuators_asctec.i2c_trans.buf[3] = actuators_asctec.cmds[SERVO_RIGHT];
-  actuators_asctec.i2c_trans.buf[4] = 0xAA + actuators_asctec.i2c_trans.buf[0] + actuators_asctec.i2c_trans.buf[1] +
-                                             actuators_asctec.i2c_trans.buf[2] + actuators_asctec.i2c_trans.buf[3];
+  switch (actuators_asctec.cmd) {
+  case TEST:
+    actuators_asctec.i2c_trans.buf[0] = 251;
+    actuators_asctec.i2c_trans.buf[1] = actuators_asctec.cur_addr;
+    actuators_asctec.i2c_trans.buf[2] = 0;
+    actuators_asctec.i2c_trans.buf[3] = 231 + actuators_asctec.cur_addr;
+    actuators_asctec.i2c_trans.len_w = 4;
+    break;
+  case REVERSE:
+    actuators_asctec.i2c_trans.buf[0] = 254;
+    actuators_asctec.i2c_trans.buf[1] = actuators_asctec.cur_addr;
+    actuators_asctec.i2c_trans.buf[2] = 0;
+    actuators_asctec.i2c_trans.buf[3] = 234 + actuators_asctec.cur_addr;
+    actuators_asctec.i2c_trans.len_w = 4;
+    break;
+  case SET_ADDR:
+    actuators_asctec.i2c_trans.buf[0] = 250;
+    actuators_asctec.i2c_trans.buf[1] = actuators_asctec.cur_addr;
+    actuators_asctec.i2c_trans.buf[2] = actuators_asctec.new_addr;
+    actuators_asctec.i2c_trans.buf[3] = 230 + actuators_asctec.cur_addr + actuators_asctec.new_addr;
+    actuators_asctec.cur_addr = actuators_asctec.new_addr;
+    actuators_asctec.i2c_trans.len_w = 4;
+    break;
+  case NONE:
+    actuators_asctec.i2c_trans.buf[0] = actuators_asctec.cmds[SERVO_FRONT];
+    actuators_asctec.i2c_trans.buf[1] = actuators_asctec.cmds[SERVO_BACK];
+    actuators_asctec.i2c_trans.buf[2] = actuators_asctec.cmds[SERVO_LEFT];
+    actuators_asctec.i2c_trans.buf[3] = actuators_asctec.cmds[SERVO_RIGHT];
+    actuators_asctec.i2c_trans.buf[4] = 0xAA + actuators_asctec.i2c_trans.buf[0] + actuators_asctec.i2c_trans.buf[1] +
+      actuators_asctec.i2c_trans.buf[2] + actuators_asctec.i2c_trans.buf[3];
+    actuators_asctec.i2c_trans.len_w = 5;
+    break;
+  default:
+    break;
+  }
+  actuators_asctec.cmd = NONE;
 #endif
 
   i2c_submit(&ACTUATORS_ASCTEC_DEVICE, &actuators_asctec.i2c_trans);

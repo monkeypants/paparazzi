@@ -20,26 +20,41 @@
 #
 #
 
+IMU_ASPIRIN_CFLAGS  = -DIMU_TYPE_H=\"imu/imu_aspirin.h\"
+IMU_ASPIRIN_SRCS    = $(SRC_SUBSYSTEMS)/imu.c
+IMU_ASPIRIN_SRCS   += $(SRC_SUBSYSTEMS)/imu/imu_aspirin.c
+
+#IMU_ASPIRIN_SRCS   += $(SRC_ARCH)/subsystems/imu/imu_aspirin_arch.c
+IMU_ASPIRIN_CFLAGS += -DASPIRIN_ARCH_INDEP
+
+IMU_ASPIRIN_SRCS   += mcu_periph/spi.c $(SRC_ARCH)/mcu_periph/spi_arch.c
+
+IMU_ASPIRIN_CFLAGS += -DUSE_SPI -DSPI_MASTER
+
 # for fixedwing firmware and ap only
 ifeq ($(TARGET), ap)
-  IMU_ASPIRIN_CFLAGS  = -DUSE_IMU
+  IMU_ASPIRIN_CFLAGS  += -DUSE_IMU
 endif
 
-IMU_ASPIRIN_CFLAGS += -DIMU_TYPE_H=\"imu/imu_aspirin.h\"
-IMU_ASPIRIN_SRCS    = $(SRC_SUBSYSTEMS)/imu.c             \
-                      $(SRC_SUBSYSTEMS)/imu/imu_aspirin.c \
-                      $(SRC_ARCH)/subsystems/imu/imu_aspirin_arch.c
+# Accelerometer
+IMU_ASPIRIN_SRCS   += peripherals/adxl345_spi.c
 
-include $(CFG_SHARED)/spi.makefile
+# Gyro
+IMU_ASPIRIN_SRCS   += peripherals/itg3200.c
 
 # Magnetometer
-IMU_ASPIRIN_SRCS   += peripherals/hmc5843.c $(SRC_ARCH)/peripherals/hmc5843_arch.c
-
-IMU_ASPIRIN_CFLAGS += -DUSE_I2C2
+#IMU_ASPIRIN_SRCS   += peripherals/hmc5843.c $(SRC_ARCH)/peripherals/hmc5843_arch.c
+IMU_ASPIRIN_SRCS   += peripherals/hmc58xx.c
 
 ifeq ($(ARCH), lpc21)
-$(error The aspirin subsystem (using SPI) is currently not implemnented for the lpc21. Please use the aspirin_i2c subsystem.)
+$(error Aspirin driver on lpc is unfinished.)
+IMU_ASPIRIN_CFLAGS += -DUSE_SPI_SLAVE0
+IMU_ASPIRIN_CFLAGS += -DASPIRIN_SPI_DEV=SPI_SLAVE0
+IMU_ASPIRIN_CFLAGS += -DUSE_SPI1
+IMU_ASPIRIN_CFLAGS += -DASPIRIN_I2C_DEV=i2c1
+IMU_ASPIRIN_CFLAGS += -DUSE_I2C1
 else ifeq ($(ARCH), stm32)
+IMU_ASPIRIN_CFLAGS += -DUSE_I2C2
 IMU_ASPIRIN_CFLAGS += -DUSE_SPI2
 # Slave select configuration
 # SLAVE2 is on PB12 (NSS) (ADXL345 CS)
