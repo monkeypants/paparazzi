@@ -27,9 +27,7 @@ IMU_ASPIRIN_SRCS   += $(SRC_SUBSYSTEMS)/imu/imu_aspirin.c
 #IMU_ASPIRIN_SRCS   += $(SRC_ARCH)/subsystems/imu/imu_aspirin_arch.c
 IMU_ASPIRIN_CFLAGS += -DASPIRIN_ARCH_INDEP
 
-IMU_ASPIRIN_SRCS   += mcu_periph/spi.c $(SRC_ARCH)/mcu_periph/spi_arch.c
-
-IMU_ASPIRIN_CFLAGS += -DUSE_SPI -DSPI_MASTER
+include $(CFG_SHARED)/spi_master.makefile
 
 # for fixedwing firmware and ap only
 ifeq ($(TARGET), ap)
@@ -47,9 +45,9 @@ IMU_ASPIRIN_SRCS   += peripherals/itg3200.c
 IMU_ASPIRIN_SRCS   += peripherals/hmc58xx.c
 
 ifeq ($(ARCH), lpc21)
-$(error Aspirin driver on lpc is unfinished.)
 IMU_ASPIRIN_CFLAGS += -DUSE_SPI_SLAVE0
-IMU_ASPIRIN_CFLAGS += -DASPIRIN_SPI_DEV=SPI_SLAVE0
+IMU_ASPIRIN_CFLAGS += -DASPIRIN_SPI_SLAVE_IDX=SPI_SLAVE0
+IMU_ASPIRIN_CFLAGS += -DASPIRIN_SPI_DEV=spi1
 IMU_ASPIRIN_CFLAGS += -DUSE_SPI1
 IMU_ASPIRIN_CFLAGS += -DASPIRIN_I2C_DEV=i2c1
 IMU_ASPIRIN_CFLAGS += -DUSE_I2C1

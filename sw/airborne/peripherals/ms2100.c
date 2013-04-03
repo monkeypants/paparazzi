@@ -50,11 +50,14 @@ void ms2100_init(struct Ms2100 *ms, struct spi_periph *spi_p, uint8_t slave_idx)
   ms->spi_p = spi_p;
 
   /* configure spi transaction for the request */
-  ms->req_trans.slave_idx = slave_idx;
-  ms->req_trans.select = SPISelectUnselect;
   ms->req_trans.cpol = SPICpolIdleLow;
   ms->req_trans.cpha = SPICphaEdge1;
   ms->req_trans.dss = SPIDss8bit;
+  ms->req_trans.bitorder = SPIMSBFirst;
+  ms->req_trans.cdiv = SPIDiv64;
+
+  ms->req_trans.slave_idx = slave_idx;
+  ms->req_trans.select = SPISelectUnselect;
   ms->req_trans.output_buf = ms->req_buf;
   ms->req_trans.output_length = 1;
   ms->req_trans.input_buf = NULL;
@@ -64,11 +67,14 @@ void ms2100_init(struct Ms2100 *ms, struct spi_periph *spi_p, uint8_t slave_idx)
   ms->req_trans.status = SPITransDone;
 
   /* configure spi transaction to read the result */
-  ms->read_trans.slave_idx = slave_idx;
-  ms->read_trans.select = SPISelectUnselect;
   ms->read_trans.cpol = SPICpolIdleLow;
   ms->read_trans.cpha = SPICphaEdge1;
   ms->read_trans.dss = SPIDss8bit;
+  ms->read_trans.bitorder = SPIMSBFirst;
+  ms->read_trans.cdiv = SPIDiv64;
+
+  ms->read_trans.slave_idx = slave_idx;
+  ms->read_trans.select = SPISelectUnselect;
   ms->read_trans.output_buf = NULL;
   ms->read_trans.output_length = 0;
   ms->read_trans.input_buf = ms->read_buf;
@@ -97,9 +103,6 @@ void ms2100_read(struct Ms2100 *ms) {
 void ms2100_event(struct Ms2100 *ms) {
   // handle request transaction
   if (ms->req_trans.status == SPITransDone) {
-#ifdef Ms2100HasEOC  // stupid hack for now: poll pin to check for EOC with stm32
-    if (Ms2100HasEOC()) ms->status = MS2100_GOT_EOC;
-#endif
     if (ms->status == MS2100_GOT_EOC) {
       // eoc occurs, submit reading req
       spi_submit(ms->spi_p, &(ms->read_trans));

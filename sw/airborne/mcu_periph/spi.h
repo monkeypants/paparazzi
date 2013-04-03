@@ -60,25 +60,25 @@ enum SPISlaveSelect {
   SPINoSelect        ///< slave is not selected nor unselected
 };
 
-/** SPI clock phase control options.
+/** SPI CPHA (clock phase) options.
  * Control whether data line is sampled
  * at first or second edge of clock signal.
  */
 enum SPIClockPhase {
-  SPICphaEdge1,
-  SPICphaEdge2
+  SPICphaEdge1,  ///< CPHA = 0
+  SPICphaEdge2   ///< CPHA = 1
 };
 
-/** SPI clock polarity control options.
+/** SPI CPOL (clock polarity) options.
  * Control whether clock line is held
  * low or high in idle state.
  */
 enum SPIClockPolarity {
-  SPICpolIdleLow,
-  SPICpolIdleHigh
+  SPICpolIdleLow,  ///< CPOL = 0
+  SPICpolIdleHigh  ///< CPOL = 1
 };
 
-/** SPI Data size transfer.
+/** SPI data word size of transfer.
  */
 enum SPIDataSizeSelect {
   SPIDss8bit,
@@ -107,6 +107,9 @@ enum SPIBitOrder {
   SPILSBFirst
 };
 
+/** Peripheral clock divider.
+ * Defines the SPI baudrate
+ */
 enum SPIClockDiv {
   SPIDiv2,
   SPIDiv4,
@@ -132,22 +135,22 @@ typedef void (*SPICallback)( struct spi_transaction *trans );
  * - The input/output buffers needs to be created separately
  * - Take care of pointing input_buf/ouput_buf correctly
  * - input_length and output_length can be different, the larger number
- *   of the two specifies the toal number of exchanged bytes,
+ *   of the two specifies the toal number of exchanged words,
  * - if input_length is larger than output length,
- *   0 is sent for the remaining bytes
+ *   0 is sent for the remaining words
  */
 struct spi_transaction {
-  volatile uint8_t* input_buf;
-  volatile uint8_t* output_buf;
-  uint8_t input_length;         ///< number of bytes to read
-  uint8_t output_length;        ///< number of bytes to write
-  uint8_t slave_idx;            ///< slave id
+  volatile uint8_t* input_buf;  ///< pointer to receive buffer for DMA
+  volatile uint8_t* output_buf; ///< pointer to transmit buffer for DMA
+  uint8_t input_length;         ///< number of data words to read
+  uint8_t output_length;        ///< number of data words to write
+  uint8_t slave_idx;            ///< slave id: #SPI_SLAVE0 to #SPI_SLAVE4
   enum SPISlaveSelect select;   ///< slave selection behavior
   enum SPIClockPolarity cpol;   ///< clock polarity control
   enum SPIClockPhase cpha;      ///< clock phase control
-  enum SPIDataSizeSelect dss;   ///< transfer data size
-  enum SPIBitOrder bitorder;
-  enum SPIClockDiv cdiv;
+  enum SPIDataSizeSelect dss;   ///< data transfer word size
+  enum SPIBitOrder bitorder;    ///< MSB/LSB order
+  enum SPIClockDiv cdiv;        ///< prescaler of main clock to use as SPI clock
   SPICallback before_cb;        ///< NULL or function called before the transaction
   SPICallback after_cb;         ///< NULL or function called after the transaction
   volatile enum SPITransactionStatus status;
@@ -180,6 +183,7 @@ struct spi_periph {
 #define SPI_SLAVE2 2
 #define SPI_SLAVE3 3
 #define SPI_SLAVE4 4
+#define SPI_SLAVE5 5
 
 /// @todo SPI error struct
 //extern uint8_t spi_nb_ovrn;
@@ -194,7 +198,7 @@ extern void spi0_init(void);
  */
 extern void spi0_arch_init(void);
 
-#endif
+#endif // USE_SPI0
 
 #if USE_SPI1
 
@@ -206,7 +210,7 @@ extern void spi1_init(void);
  */
 extern void spi1_arch_init(void);
 
-#endif
+#endif // USE_SPI1
 
 #if USE_SPI2
 
@@ -218,8 +222,19 @@ extern void spi2_init(void);
  */
 extern void spi2_arch_init(void);
 
+#endif // USE_SPI2
 
-#endif
+#if USE_SPI3
+
+extern struct spi_periph spi3;
+extern void spi3_init(void);
+
+/** Architecture dependant SPI3 initialization.
+ * Must be implemented by underlying architecture
+ */
+extern void spi3_arch_init(void);
+
+#endif // USE_SPI3
 
 /** Initialize a spi peripheral.
  * @param p spi peripheral to be configured
@@ -275,7 +290,7 @@ extern bool_t spi_resume(struct spi_periph* p, uint8_t slave);
 extern struct spi_periph spi0;
 extern void spi0_slave_init(void);
 
-/** Architecture dependant SPI1 initialization.
+/** Architecture dependant SPI0 initialization as slave.
  * Must be implemented by underlying architecture
  */
 extern void spi0_slave_arch_init(void);
@@ -287,7 +302,7 @@ extern void spi0_slave_arch_init(void);
 extern struct spi_periph spi1;
 extern void spi1_slave_init(void);
 
-/** Architecture dependant SPI1 initialization.
+/** Architecture dependant SPI1 initialization as slave.
  * Must be implemented by underlying architecture
  */
 extern void spi1_slave_arch_init(void);
@@ -299,10 +314,22 @@ extern void spi1_slave_arch_init(void);
 extern struct spi_periph spi2;
 extern void spi2_slave_init(void);
 
-/** Architecture dependant SPI1 initialization.
+/** Architecture dependant SPI2 initialization as slave.
  * Must be implemented by underlying architecture
  */
 extern void spi2_slave_arch_init(void);
+
+#endif
+
+#if USE_SPI3_SLAVE
+
+extern struct spi_periph spi3;
+extern void spi3_slave_init(void);
+
+/** Architecture dependant SPI3 initialization as slave.
+ * Must be implemented by underlying architecture
+ */
+extern void spi3_slave_arch_init(void);
 
 #endif
 

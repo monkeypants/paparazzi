@@ -68,10 +68,10 @@ PRINT_CONFIG_VAR(ASPIRIN_GYRO_LOWPASS)
 #ifndef ASPIRIN_GYRO_SMPLRT_DIV
 #  if PERIODIC_FREQUENCY <= 60
 #    define ASPIRIN_GYRO_SMPLRT_DIV 19
-     INFO("Gyro output rate is 50Hz")
+     PRINT_CONFIG_MSG("Gyro output rate is 50Hz")
 #  else
 #    define ASPIRIN_GYRO_SMPLRT_DIV 9
-     INFO("Gyro output rate is 100Hz")
+     PRINT_CONFIG_MSG("Gyro output rate is 100Hz")
 #  endif
 #endif
 PRINT_CONFIG_VAR(ASPIRIN_GYRO_SMPLRT_DIV)
@@ -146,9 +146,13 @@ void imu_aspirin_i2c_event(void)
   /* HMC58XX event task */
   hmc58xx_event(&imu_aspirin.mag_hmc);
   if (imu_aspirin.mag_hmc.data_available) {
-    imu.mag_unscaled.x = imu_aspirin.mag_hmc.data.value[IMU_MAG_X_CHAN];
-    imu.mag_unscaled.y = imu_aspirin.mag_hmc.data.value[IMU_MAG_Y_CHAN];
-    imu.mag_unscaled.z = imu_aspirin.mag_hmc.data.value[IMU_MAG_Z_CHAN];
+#ifdef IMU_ASPIRIN_VERSION_1_0
+    VECT3_COPY(imu.mag_unscaled, imu_aspirin.mag_hmc.data.vect);
+#else // aspirin 1.5 with hmc5883
+    imu.mag_unscaled.x =  imu_aspirin.mag_hmc.data.vect.y;
+    imu.mag_unscaled.y = -imu_aspirin.mag_hmc.data.vect.x;
+    imu.mag_unscaled.z =  imu_aspirin.mag_hmc.data.vect.z;
+#endif
     imu_aspirin.mag_hmc.data_available = FALSE;
     imu_aspirin.mag_valid = TRUE;
   }

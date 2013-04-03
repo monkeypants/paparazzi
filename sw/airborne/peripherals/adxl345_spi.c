@@ -38,12 +38,13 @@ void adxl345_spi_init(struct Adxl345_Spi *adxl, struct spi_periph *spi_p, uint8_
   adxl->spi_p = spi_p;
 
   /* configure spi transaction */
-  adxl->spi_trans.select = SPISelectUnselect;
   adxl->spi_trans.cpol = SPICpolIdleHigh;
   adxl->spi_trans.cpha = SPICphaEdge2;
   adxl->spi_trans.dss = SPIDss8bit;
   adxl->spi_trans.bitorder = SPIMSBFirst;
   adxl->spi_trans.cdiv = SPIDiv64;
+
+  adxl->spi_trans.select = SPISelectUnselect;
   adxl->spi_trans.slave_idx = slave_idx;
   adxl->spi_trans.output_length = 7;
   adxl->spi_trans.input_length = 7;
@@ -60,12 +61,14 @@ void adxl345_spi_init(struct Adxl345_Spi *adxl, struct spi_periph *spi_p, uint8_
   adxl345_set_default_config(&(adxl->config));
 
   adxl->initialized = FALSE;
+  adxl->data_available = FALSE;
   adxl->init_status = ADXL_CONF_UNINIT;
 }
 
 
 static void adxl345_spi_write_to_reg(struct Adxl345_Spi *adxl, uint8_t _reg, uint8_t _val) {
-  //adxl->spi_trans.output_length = 2;
+  adxl->spi_trans.output_length = 2;
+  adxl->spi_trans.input_length = 0;
   adxl->tx_buf[0] = _reg;
   adxl->tx_buf[1] = _val;
   spi_submit(adxl->spi_p, &(adxl->spi_trans));
@@ -79,17 +82,17 @@ static void adxl345_spi_send_config(struct Adxl345_Spi *adxl)
       adxl345_spi_write_to_reg(adxl, ADXL345_REG_BW_RATE, adxl->config.rate);
       adxl->init_status++;
       break;
-    case ADXL_CONF_POWER:
-      /* enable measurement, is in standby after power up */
-      adxl345_spi_write_to_reg(adxl, ADXL345_REG_POWER_CTL, (0x1<<3));
-      adxl->init_status++;
-      break;
     case ADXL_CONF_INT:
       adxl345_spi_write_to_reg(adxl, ADXL345_REG_INT_ENABLE, (adxl->config.drdy_int_enable << 7));
       adxl->init_status++;
       break;
     case ADXL_CONF_FORMAT:
       adxl345_spi_write_to_reg(adxl, ADXL345_REG_DATA_FORMAT, adxl345_data_format(&adxl->config));
+      adxl->init_status++;
+      break;
+    case ADXL_CONF_ENABLE:
+      /* enable measurement, is in standby after power up */
+      adxl345_spi_write_to_reg(adxl, ADXL345_REG_POWER_CTL, (0x1<<3));
       adxl->init_status++;
       break;
     case ADXL_CONF_DONE:
@@ -114,8 +117,9 @@ void adxl345_spi_start_configure(struct Adxl345_Spi *adxl)
 void adxl345_spi_read(struct Adxl345_Spi *adxl)
 {
   if (adxl->initialized && adxl->spi_trans.status == SPITransDone) {
-    //adxl->spi_trans.output_length = 1;
-    //adxl->tx_buf[0] = ADXL345_REG_DATA_X0;
+    adxl->spi_trans.output_length = 1;
+    adxl->spi_trans.input_length = 7;
+    /* set read bit and multiple byte bit, then address */
     adxl->tx_buf[0] = (1<<7|1<<6|ADXL345_REG_DATA_X0);
     spi_submit(adxl->spi_p, &(adxl->spi_trans));
   }
@@ -139,14 +143,16 @@ void adxl345_spi_event(struct Adxl345_Spi *adxl)
     }
   }
   else if (adxl->init_status != ADXL_CONF_UNINIT) { // Configuring but not yet initialized
-    if (adxl->spi_trans.status == SPITransSuccess || adxl->spi_trans.status == SPITransDone) {
-      adxl->spi_trans.status = SPITransDone;
-      adxl345_spi_send_config(adxl);
-    }
-    if (adxl->spi_trans.status == SPITransFailed) {
-      adxl->init_status--;
-      adxl->spi_trans.status = SPITransDone;
-      adxl345_spi_send_config(adxl); // Retry config (TODO max retry)
+    switch (adxl->spi_trans.status) {
+      case SPITransFailed:
+        adxl->init_status--; // Retry config (TODO max retry)
+      case SPITransSuccess:
+      case SPITransDone:
+        adxl->spi_trans.status = SPITransDone;
+        adxl345_spi_send_config(adxl);
+        break;
+      default:
+        break;
     }
   }
 }

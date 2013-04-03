@@ -36,7 +36,7 @@
 #include "nps_flightgear.h"
 
 #include "mcu_periph/sys_time.h"
-#define SIM_DT     (SYS_TIME_RESOLUTION)
+#define SIM_DT     (1./SYS_TIME_FREQUENCY)
 #define DISPLAY_DT (1./30.)
 #define HOST_TIMEOUT_MS 40
 #define HOST_TIME_FACTOR 1.
@@ -122,6 +122,7 @@ static void nps_main_init(void) {
   nps_ivy_init(nps_main.ivy_bus);
   nps_fdm_init(SIM_DT);
   nps_sensors_init(nps_main.sim_time);
+  printf("Simulating with dt of %f\n", SIM_DT);
 
   enum NpsRadioControlType rc_type;
   char* rc_dev = NULL;

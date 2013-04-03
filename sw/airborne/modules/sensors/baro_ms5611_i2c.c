@@ -33,6 +33,7 @@
 #include "mcu_periph/uart.h"
 #include "messages.h"
 #include "subsystems/datalink/downlink.h"
+#include "subsystems/nav.h"
 
 #ifndef DOWNLINK_DEVICE
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
@@ -42,9 +43,9 @@
 #define MS5611_I2C_DEV i2c0
 #endif
 
-/* address can be 0xEC or 0xEE (CSB\ high = 0xEC) */
+/* address can be 0xEC or 0xEE (CSB\ low = 0xEE) */
 #ifndef MS5611_SLAVE_ADDR
-#define MS5611_SLAVE_ADDR 0xEC
+#define MS5611_SLAVE_ADDR 0xEE
 #endif
 
 
@@ -88,12 +89,12 @@ void baro_ms5611_init(void) {
 }
 
 void baro_ms5611_periodic( void ) {
-  if (cpu_time_sec > 1) {
+  if (sys_time.nb_sec > 1) {
     if (ms5611_status >= MS5611_IDLE) {
       /* start D1 conversion */
       ms5611_status = MS5611_CONV_D1;
       ms5611_trans.buf[0] = MS5611_START_CONV_D1;
-      I2CTransmit(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1);
+      i2c_transmit(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1);
       RunOnceEvery((4*30), DOWNLINK_SEND_MS5611_COEFF(DefaultChannel, DefaultDevice,
           &ms5611_c[0], &ms5611_c[1], &ms5611_c[2], &ms5611_c[3],
           &ms5611_c[4], &ms5611_c[5], &ms5611_c[6], &ms5611_c[7]));
@@ -102,35 +103,35 @@ void baro_ms5611_periodic( void ) {
       /* reset sensor */
       ms5611_status = MS5611_RESET;
       ms5611_trans.buf[0] = MS5611_SOFT_RESET;
-      I2CTransmit(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1);
+      i2c_transmit(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1);
     }
     else if (ms5611_status == MS5611_RESET_OK) {
       /* start getting prom data */
       ms5611_status = MS5611_PROM;
       ms5611_trans.buf[0] = MS5611_PROM_READ | (prom_cnt << 1);
-      I2CTransceive(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1, 2);
+      i2c_transceive(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1, 2);
     }
   }
 }
 
 void baro_ms5611_d1( void ) {
-  if (cpu_time_sec > 1) {
+  if (sys_time.nb_sec > 1) {
     if (ms5611_status == MS5611_CONV_D1_OK) {
       /* read D1 adc */
       ms5611_status = MS5611_ADC_D1;
       ms5611_trans.buf[0] = MS5611_ADC_READ;
-      I2CTransceive(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1, 3);
+      i2c_transceive(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1, 3);
     }
   }
 }
 
 void baro_ms5611_d2( void ) {
-  if (cpu_time_sec > 1) {
+  if (sys_time.nb_sec > 1) {
     if (ms5611_status == MS5611_CONV_D2_OK) {
       /* read D2 adc */
       ms5611_status = MS5611_ADC_D2;
       ms5611_trans.buf[0] = MS5611_ADC_READ;
-      I2CTransceive(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1, 3);
+      i2c_transceive(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1, 3);
     }
   }
 }
@@ -150,7 +151,7 @@ void baro_ms5611_event( void ) {
       if (prom_cnt < PROM_NB) {
         /* get next prom data */
         ms5611_trans.buf[0] = MS5611_PROM_READ | (prom_cnt << 1);
-        I2CTransceive(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1, 2);
+        i2c_transceive(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1, 2);
       }
       else {
         /* done reading prom */
@@ -182,7 +183,7 @@ void baro_ms5611_event( void ) {
       /* start D2 conversion */
       ms5611_status = MS5611_CONV_D2;
       ms5611_trans.buf[0] = MS5611_START_CONV_D2;
-      I2CTransmit(MS5611_I2C_DEV, ms5611_trans, MS5611_SLAVE_ADDR, 1);
+      i2c_transmit(&MS5611_I2C_DEV, &ms5611_trans, MS5611_SLAVE_ADDR, 1);
       break;
 
     case MS5611_CONV_D2:

@@ -138,26 +138,47 @@ ap.srcs += subsystems/actuators.c
 #
 # BARO
 #
-BARO = BARO_I2C
+# booz baro
 ifeq ($(BOARD), booz)
 ap.srcs += $(SRC_BOARD)/baro_board.c
 else ifeq ($(BOARD), lisa_l)
 ap.CFLAGS += -DUSE_I2C2
 ap.srcs += $(SRC_BOARD)/baro_board.c
+
+# Lisa/M baro
 else ifeq ($(BOARD), lisa_m)
-  ifeq ($(BARO), BARO_SPI)
-    include $(CFG_SHARED)/spi.makefile
+# defaults to i2c baro bmp085 on the board
+LISA_M_BARO ?= BARO_BOARD_BMP085
+  ifeq ($(LISA_M_BARO), BARO_MS5611_SPI)
+    include $(CFG_SHARED)/spi_master.makefile
     ap.CFLAGS += -DUSE_SPI2 -DUSE_SPI_SLAVE3
-    ap.srcs += $(SRC_BOARD)/baro_board_spi.c
-  else ifeq ($(BARO), BARO_I2C)
+    ap.srcs += $(SRC_BOARD)/baro_ms5611_spi.c
+  else ifeq ($(LISA_M_BARO), BARO_MS5611_I2C)
     ap.CFLAGS += -DUSE_I2C2
-    ap.srcs += $(SRC_BOARD)/baro_board_i2c.c
-  else ifeq ($(BARO), BARO_ASPIRIN)
+    ap.srcs += $(SRC_BOARD)/baro_ms5611_i2c.c
+  else ifeq ($(LISA_M_BARO), BARO_BOARD_BMP085)
     ap.srcs += $(SRC_BOARD)/baro_board.c
+	ap.CFLAGS += -DUSE_I2C2
   endif
-  ap.CFLAGS += -D$(BARO)
+  ap.CFLAGS += -D$(LISA_M_BARO)
+
+# Lia baro (no bmp onboard)
+else ifeq ($(BOARD), lia)
+# fixme, reuse the baro drivers in lisa_m dir
+LIA_BARO ?= BARO_MS5611_SPI
+  ifeq ($(LIA_BARO), BARO_MS5611_SPI)
+    include $(CFG_SHARED)/spi_master.makefile
+    ap.CFLAGS += -DUSE_SPI2 -DUSE_SPI_SLAVE3
+    ap.srcs += boards/lisa_m/baro_ms5611_spi.c
+  else ifeq ($(LIA_BARO), BARO_MS5611_I2C)
+    ap.CFLAGS += -DUSE_I2C2
+    ap.srcs += boards/lisa_m/baro_ms5611_i2c.c
+  endif
+  ap.CFLAGS += -D$(LIA_BARO)
+
+# navgo baro
 else ifeq ($(BOARD), navgo)
-include $(CFG_SHARED)/spi.makefile
+include $(CFG_SHARED)/spi_master.makefile
 ap.CFLAGS += -DUSE_SPI_SLAVE0
 ap.CFLAGS += -DUSE_SPI1
 ap.srcs += peripherals/mcp355x.c
@@ -218,7 +239,9 @@ ap.srcs += $(SRC_FIRMWARE)/stabilization/stabilization_rate.c
 
 ap.CFLAGS += -DUSE_NAVIGATION
 ap.srcs += $(SRC_FIRMWARE)/guidance/guidance_h.c
+ap.srcs += $(SRC_FIRMWARE)/guidance/guidance_h_ref.c
 ap.srcs += $(SRC_FIRMWARE)/guidance/guidance_v.c
+ap.srcs += $(SRC_FIRMWARE)/guidance/guidance_v_ref.c
 
 #
 # INS choice

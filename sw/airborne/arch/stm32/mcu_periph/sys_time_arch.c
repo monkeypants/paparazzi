@@ -36,13 +36,20 @@
 #endif
 
 /** Initialize SysTick.
- * Generate SysTick interrupt every SYS_TIME_RESOLUTION_CPU_TICKS
- * The timer interrupt is activated on the transition from 1 to 0,
- * therefore it activates every n+1 clock ticks.
+ * Generate SysTick interrupt every sys_time.resolution_cpu_ticks
  */
 void sys_time_arch_init( void ) {
+  /* run cortex systick timer with 72MHz */
   systick_set_clocksource(STK_CTRL_CLKSOURCE_AHB);
-  systick_set_reload(SYS_TIME_RESOLUTION_CPU_TICKS-1);
+  sys_time.cpu_ticks_per_sec = AHB_CLK;
+
+  /* cpu ticks per desired sys_time timer step */
+  sys_time.resolution_cpu_ticks = (uint32_t)(sys_time.resolution * sys_time.cpu_ticks_per_sec + 0.5);
+
+  /* The timer interrupt is activated on the transition from 1 to 0,
+   * therefore it activates every n+1 clock ticks.
+   */
+  systick_set_reload(sys_time.resolution_cpu_ticks-1);
 
   systick_interrupt_enable();
   systick_counter_enable();
@@ -55,11 +62,10 @@ void sys_time_arch_init( void ) {
 // 12 hours at 100khz
 //
 void sys_tick_handler(void) {
-
   sys_time.nb_tick++;
-  sys_time.nb_sec_rem += SYS_TIME_RESOLUTION_CPU_TICKS;
-  if (sys_time.nb_sec_rem >= CPU_TICKS_PER_SEC) {
-    sys_time.nb_sec_rem -= CPU_TICKS_PER_SEC;
+  sys_time.nb_sec_rem += sys_time.resolution_cpu_ticks;
+  if (sys_time.nb_sec_rem >= sys_time.cpu_ticks_per_sec) {
+    sys_time.nb_sec_rem -= sys_time.cpu_ticks_per_sec;
     sys_time.nb_sec++;
 #ifdef SYS_TIME_LED
     LED_TOGGLE(SYS_TIME_LED);
@@ -67,10 +73,12 @@ void sys_tick_handler(void) {
   }
   for (unsigned int i=0; i<SYS_TIME_NB_TIMER; i++) {
     if (sys_time.timer[i].in_use &&
-    sys_time.nb_tick >= sys_time.timer[i].end_time) {
+        sys_time.nb_tick >= sys_time.timer[i].end_time) {
       sys_time.timer[i].end_time += sys_time.timer[i].duration;
       sys_time.timer[i].elapsed = TRUE;
-      if (sys_time.timer[i].cb) sys_time.timer[i].cb(i);
+      if (sys_time.timer[i].cb) {
+        sys_time.timer[i].cb(i);
+      }
     }
   }
 }

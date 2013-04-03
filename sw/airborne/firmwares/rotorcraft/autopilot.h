@@ -49,8 +49,8 @@
 #define AP_MODE_HOVER_CLIMB       10
 #define AP_MODE_HOVER_Z_HOLD      11
 #define AP_MODE_NAV               12
-#define AP_MODE_RC_DIRECT	  13	// Safety Pilot Direct Commands for helicopter direct control: appropriately chosen as mode "13"
-
+#define AP_MODE_RC_DIRECT         13	// Safety Pilot Direct Commands for helicopter direct control: appropriately chosen as mode "13"
+#define AP_MODE_CARE_FREE_DIRECT  14
 
 extern uint8_t autopilot_mode;
 extern uint8_t autopilot_mode_auto2;
@@ -139,14 +139,15 @@ extern uint16_t autopilot_flight_time;
 }
 #endif
 
-/** Ground detection based on accelerometers.
- */
+/** Z-acceleration threshold to detect ground in m/s^2 */
 #ifndef THRESHOLD_GROUND_DETECT
-#define THRESHOLD_GROUND_DETECT ACCEL_BFP_OF_REAL(15.)
+#define THRESHOLD_GROUND_DETECT 25.0
 #endif
+/** Ground detection based on vertical acceleration.
+ */
 static inline void DetectGroundEvent(void) {
   if (autopilot_mode == AP_MODE_FAILSAFE || autopilot_detect_ground_once) {
-    struct NedCoor_i* accel = stateGetAccelNed_i();
+    struct NedCoor_f* accel = stateGetAccelNed_f();
     if (accel->z < -THRESHOLD_GROUND_DETECT ||
         accel->z > THRESHOLD_GROUND_DETECT) {
       autopilot_detect_ground = TRUE;
