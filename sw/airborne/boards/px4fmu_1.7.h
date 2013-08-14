@@ -232,4 +232,82 @@
 #define BOARD_HAS_BARO 1
 
 
+
+/* Default actuators driver */
+#define DEFAULT_ACTUATORS "subsystems/actuators/actuators_pwm.h"
+#define ActuatorDefaultSet(_x,_y) ActuatorPwmSet(_x,_y)
+#define ActuatorsDefaultInit() ActuatorsPwmInit()
+#define ActuatorsDefaultCommit() ActuatorsPwmCommit()
+
+/* PWM */
+#define PWM_USE_TIM2 1
+
+#define USE_PWM1 1
+#define USE_PWM2 1
+#define USE_PWM3 1
+#define USE_PWM4 1
+
+// Servo numbering on the PX4 starts with 1
+
+// PWM_SERVO_x is the index of the servo in the actuators_pwm_values array
+// SRV1 is also UART2_CTS
+#if USE_PWM1
+#define PWM_SERVO_1 0
+#define PWM_SERVO_1_TIMER TIM2
+#define PWM_SERVO_1_RCC_IOP RCC_AHB1ENR_IOPAEN
+#define PWM_SERVO_1_GPIO GPIOA
+#define PWM_SERVO_1_PIN GPIO0
+#define PWM_SERVO_1_AF GPIO_AF1
+#define PWM_SERVO_1_OC TIM_OC1
+#define PWM_SERVO_1_OC_BIT (1<<0)
+#else
+#define PWM_SERVO_1_OC_BIT 0
+#endif
+
+// SRV2 is also UART2_RTS
+#if USE_PWM2
+#define PWM_SERVO_2 1
+#define PWM_SERVO_2_TIMER TIM2
+#define PWM_SERVO_2_RCC_IOP RCC_AHB1ENR_IOPAEN
+#define PWM_SERVO_2_GPIO GPIOA
+#define PWM_SERVO_2_PIN GPIO1
+#define PWM_SERVO_2_AF GPIO_AF1
+#define PWM_SERVO_2_OC TIM_OC2
+#define PWM_SERVO_2_OC_BIT (1<<1)
+#else
+#define PWM_SERVO_2_OC_BIT 0
+#endif
+
+// SRV3 is also UART2_TX
+#if USE_PWM3
+#define PWM_SERVO_3_IDX 2
+#define PWM_SERVO_3_TIMER TIM2
+#define PWM_SERVO_3_RCC_IOP RCC_AHB1ENR_IOPAEN
+#define PWM_SERVO_3_GPIO GPIOA
+#define PWM_SERVO_3_PIN GPIO2
+#define PWM_SERVO_3_AF GPIO_AF1
+#define PWM_SERVO_3_OC TIM_OC3
+#define PWM_SERVO_3_OC_BIT (1<<2)
+#else
+#define PWM_SERVO_3_OC_BIT 0
+#endif
+
+// SRV4 is also UART2_RX
+#if USE_PWM4
+#define PWM_SERVO_4 3
+#define PWM_SERVO_4_TIMER TIM2
+#define PWM_SERVO_4_RCC_IOP RCC_AHB1ENR_IOPAEN
+#define PWM_SERVO_4_GPIO GPIOA
+#define PWM_SERVO_4_PIN GPIO3
+#define PWM_SERVO_4_AF GPIO_AF1
+#define PWM_SERVO_4_OC TIM_OC4
+#define PWM_SERVO_4_OC_BIT (1<<3)
+#else
+#define PWM_SERVO_4_OC_BIT 0
+#endif
+
+
+#define PWM_TIM2_CHAN_MASK (PWM_SERVO_1_OC_BIT|PWM_SERVO_2_OC_BIT|PWM_SERVO_3_OC_BIT|PWM_SERVO_4_OC_BIT)
+
+
 #endif /* CONFIG_PX4FMU_1_7_H */
