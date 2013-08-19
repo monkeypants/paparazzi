@@ -223,7 +223,13 @@
                                   &stabilization_cmd[COMMAND_THRUST]); \
   }
 
-#ifdef STABILIZATION_ATTITUDE_TYPE_INT
+
+#ifdef STABILIZATION_ATTITUDE_NO_REF
+#define PERIODIC_SEND_STAB_ATTITUDE(_trans, _dev) {}
+#define PERIODIC_SEND_STAB_ATTITUDE_REF(_trans, _dev) {}
+
+#elif defined STABILIZATION_ATTITUDE_TYPE_INT
+
 #define PERIODIC_SEND_STAB_ATTITUDE(_trans, _dev) {       \
   struct Int32Rates* body_rate = stateGetBodyRates_i();   \
   struct Int32Eulers* att = stateGetNedToBodyEulers_i();  \
@@ -247,29 +253,28 @@
       &stabilization_cmd[COMMAND_YAW]);                   \
 }
 
-
-#define PERIODIC_SEND_STAB_ATTITUDE_REF(_trans, _dev) {			\
-    DOWNLINK_SEND_STAB_ATTITUDE_REF_INT(_trans, _dev,			\
-                          &stab_att_sp_euler.phi, \
-                          &stab_att_sp_euler.theta, \
-                          &stab_att_sp_euler.psi, \
-                          &stab_att_ref_euler.phi, \
-                          &stab_att_ref_euler.theta, \
-                          &stab_att_ref_euler.psi, \
-                          &stab_att_ref_rate.p, \
-                          &stab_att_ref_rate.q, \
-                          &stab_att_ref_rate.r, \
-                          &stab_att_ref_accel.p, \
-                          &stab_att_ref_accel.q, \
-                          &stab_att_ref_accel.r); \
+#define PERIODIC_SEND_STAB_ATTITUDE_REF(_trans, _dev) {             \
+    DOWNLINK_SEND_STAB_ATTITUDE_REF_INT(_trans, _dev,               \
+                                        &stab_att_sp_euler.phi,     \
+                                        &stab_att_sp_euler.theta,   \
+                                        &stab_att_sp_euler.psi,     \
+                                        &stab_att_ref_euler.phi,    \
+                                        &stab_att_ref_euler.theta,  \
+                                        &stab_att_ref_euler.psi,    \
+                                        &stab_att_ref_rate.p,       \
+                                        &stab_att_ref_rate.q,       \
+                                        &stab_att_ref_rate.r,       \
+                                        &stab_att_ref_accel.p,      \
+                                        &stab_att_ref_accel.q,      \
+                                        &stab_att_ref_accel.r);     \
   }
-#endif /* STABILIZATION_ATTITUDE_TYPE_INT */
 
-#ifdef STABILIZATION_ATTITUDE_TYPE_FLOAT
+#elif defined STABILIZATION_ATTITUDE_TYPE_FLOAT
+
 #define PERIODIC_SEND_STAB_ATTITUDE(_trans, _dev) {       \
   struct FloatRates* body_rate = stateGetBodyRates_f();   \
   struct FloatEulers* att = stateGetNedToBodyEulers_f();  \
-  float foo;                                              \
+  float foo = 0.0;                                       \
   DOWNLINK_SEND_STAB_ATTITUDE_FLOAT(_trans, _dev,         \
       &(body_rate->p), &(body_rate->q), &(body_rate->r),  \
       &(att->phi), &(att->theta), &(att->psi),            \
@@ -291,20 +296,20 @@
       &foo, &foo, &foo);                                  \
   }
 
-#define PERIODIC_SEND_STAB_ATTITUDE_REF(_trans, _dev) {			\
-    DOWNLINK_SEND_STAB_ATTITUDE_REF_FLOAT(_trans, _dev,			\
-                        &stab_att_sp_euler.phi, \
-                        &stab_att_sp_euler.theta, \
-                        &stab_att_sp_euler.psi, \
-                        &stab_att_ref_euler.phi, \
-                        &stab_att_ref_euler.theta, \
-                        &stab_att_ref_euler.psi, \
-                        &stab_att_ref_rate.p,	\
-                        &stab_att_ref_rate.q,	\
-                        &stab_att_ref_rate.r,	\
-                        &stab_att_ref_accel.p, \
-                        &stab_att_ref_accel.q, \
-                        &stab_att_ref_accel.r); \
+#define PERIODIC_SEND_STAB_ATTITUDE_REF(_trans, _dev) {                 \
+    DOWNLINK_SEND_STAB_ATTITUDE_REF_FLOAT(_trans, _dev,                 \
+                                          &stab_att_sp_euler.phi,       \
+                                          &stab_att_sp_euler.theta,     \
+                                          &stab_att_sp_euler.psi,       \
+                                          &stab_att_ref_euler.phi,      \
+                                          &stab_att_ref_euler.theta,    \
+                                          &stab_att_ref_euler.psi,      \
+                                          &stab_att_ref_rate.p,         \
+                                          &stab_att_ref_rate.q,         \
+                                          &stab_att_ref_rate.r,         \
+                                          &stab_att_ref_accel.p,        \
+                                          &stab_att_ref_accel.q,        \
+                                          &stab_att_ref_accel.r);       \
   }
 
 #endif /* STABILIZATION_ATTITUDE_TYPE_FLOAT */
@@ -356,6 +361,28 @@
   }
 #else
 #define PERIODIC_SEND_FILTER(_trans, _dev) {}
+#endif
+
+#if USE_AHRS_ARDRONE2
+#include "subsystems/ahrs/ahrs_ardrone2.h"
+#define PERIODIC_SEND_AHRS_ARDRONE2(_trans, _dev) {	\
+    DOWNLINK_SEND_AHRS_ARDRONE2(_trans, _dev,	\
+             &ahrs_impl.state,					\
+             &ahrs_impl.control_state,			\
+             &ahrs_impl.eulers.phi,				\
+             &ahrs_impl.eulers.theta,			\
+             &ahrs_impl.eulers.psi,				\
+             &ahrs_impl.speed.x,				\
+             &ahrs_impl.speed.y,				\
+             &ahrs_impl.speed.z,				\
+             &ahrs_impl.accel.x,				\
+             &ahrs_impl.accel.y,				\
+             &ahrs_impl.accel.z,				\
+             &ahrs_impl.altitude,				\
+             &ahrs_impl.battery);				\
+  }
+#else
+#define PERIODIC_SEND_AHRS_ARDRONE2(_trans, _dev) {}
 #endif
 
 #if USE_AHRS_CMPL_EULER || USE_AHRS_CMPL_QUAT
@@ -452,6 +479,7 @@
 #define PERIODIC_SEND_AHRS_REF_QUAT(_trans, _dev) {}
 #endif /* STABILIZATION_ATTITUDE_TYPE_QUAT */
 
+#ifndef AHRS_FLOAT
 #define PERIODIC_SEND_AHRS_QUAT_INT(_trans, _dev) {   \
     DOWNLINK_SEND_AHRS_QUAT_INT(_trans, _dev,         \
                   &ahrs_impl.ltp_to_imu_quat.qi,      \
@@ -463,6 +491,7 @@
                   &(stateGetNedToBodyQuat_i()->qy),   \
                   &(stateGetNedToBodyQuat_i()->qz));  \
   }
+#endif
 
 #if USE_AHRS_CMPL_EULER
 #define PERIODIC_SEND_AHRS_EULER_INT(_trans, _dev) {      \
@@ -475,6 +504,7 @@
                    &(stateGetNedToBodyEulers_i()->psi));  \
   }
 #else
+#ifndef AHRS_FLOAT
 #define PERIODIC_SEND_AHRS_EULER_INT(_trans, _dev) {                    \
     struct Int32Eulers ltp_to_imu_euler;                                \
     INT32_EULERS_OF_QUAT(ltp_to_imu_euler, ahrs_impl.ltp_to_imu_quat);  \
@@ -486,6 +516,21 @@
                                  &(stateGetNedToBodyEulers_i()->theta), \
                                  &(stateGetNedToBodyEulers_i()->psi));  \
 }
+#else
+#define PERIODIC_SEND_AHRS_EULER_INT(_trans, _dev) {                    \
+    struct FloatEulers ltp_to_imu_euler;                                \
+    FLOAT_EULERS_OF_QUAT(ltp_to_imu_euler, ahrs_impl.ltp_to_imu_quat);  \
+    struct Int32Eulers euler_i;                                         \
+    EULERS_BFP_OF_REAL(euler_i, ltp_to_imu_euler);                \
+    DOWNLINK_SEND_AHRS_EULER_INT(_trans, _dev,                          \
+                                 &euler_i.phi,                          \
+                                 &euler_i.theta,                        \
+                                 &euler_i.psi,                          \
+                                 &(stateGetNedToBodyEulers_i()->phi),   \
+                                 &(stateGetNedToBodyEulers_i()->theta), \
+                                 &(stateGetNedToBodyEulers_i()->psi));  \
+  }
+#endif
 #endif
 
 #define PERIODIC_SEND_AHRS_RMAT_INT(_trans, _dev) {       \
@@ -774,6 +819,7 @@
 #define PERIODIC_SEND_ROTORCRAFT_CAM(_trans, _dev) {}
 #endif
 
+#ifndef AHRS_FLOAT
 #define PERIODIC_SEND_ROTORCRAFT_TUNE_HOVER(_trans, _dev) {             \
     DOWNLINK_SEND_ROTORCRAFT_TUNE_HOVER(_trans, _dev,                   \
                                         &radio_control.values[RADIO_ROLL], \
@@ -790,6 +836,7 @@
                                         &(stateGetNedToBodyEulers_i()->theta),  \
                                         &(stateGetNedToBodyEulers_i()->psi));   \
   }
+#endif
 
 #ifdef USE_I2C0
 #define PERIODIC_SEND_I2C0_ERRORS(_trans, _dev) {                             \
@@ -910,6 +957,42 @@
     &target_pos_ned.z)
 #else
 #define PERIODIC_SEND_CAM_TRACK(_trans, _dev) {}
+#endif
+
+#ifdef ARDRONE2_RAW
+#include "navdata.h"
+#define PERIODIC_SEND_ARDRONE_NAVDATA(_trans, _dev) DOWNLINK_SEND_ARDRONE_NAVDATA(_trans, _dev, \
+	&navdata->taille, \
+	&navdata->nu_trame, \
+	&navdata->ax, \
+	&navdata->ay, \
+	&navdata->az, \
+	&navdata->vx, \
+	&navdata->vy, \
+	&navdata->vz, \
+	&navdata->temperature_acc, \
+	&navdata->temperature_gyro, \
+	&navdata->ultrasound, \
+	&navdata->us_debut_echo, \
+	&navdata->us_fin_echo, \
+	&navdata->us_association_echo, \
+	&navdata->us_distance_echo, \
+	&navdata->us_curve_time, \
+	&navdata->us_curve_value, \
+	&navdata->us_curve_ref, \
+	&navdata->nb_echo, \
+	&navdata->sum_echo, \
+	&navdata->gradient, \
+	&navdata->flag_echo_ini, \
+	&navdata->pressure, \
+	&navdata->temperature_pressure, \
+	&navdata->mx, \
+	&navdata->my, \
+	&navdata->mz, \
+	&navdata->chksum \
+	)
+#else
+#define PERIODIC_SEND_ARDRONE_NAVDATA(_trans, _dev) {}
 #endif
 
 #include "generated/settings.h"

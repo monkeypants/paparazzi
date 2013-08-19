@@ -185,7 +185,6 @@
 
  <section name="MISC">
    <define name="FACE_REINJ_1"  value="1024"/>
-   <define name="REF_QUAT_INFINITESIMAL_STEP" value="TRUE"/>
  </section>
 
  <section name="SIMULATOR" prefix="NPS_">
@@ -234,7 +233,7 @@
     </subsystem>
     <subsystem name="ins"/>
     <!--define name="USE_INS_NAV_INIT"/-->
-    <!--subsystem name="stabilization"   type="euler"/>
+    <!--subsystem name="stabilization"   type="int_euler"/>
     <subsystem name="ahrs"          type="int_cmpl_euler"/-->
   </firmware>
 </airframe>
