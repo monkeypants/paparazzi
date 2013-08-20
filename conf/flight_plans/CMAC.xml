@@ -1,6 +1,39 @@
 <!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+<!--
+   Canberra Model Aircraft Club (CMAC) flying field.
 
-<flight_plan alt="90" ground_alt="580" lat0="-35.362660" lon0="149.165283" max_dist_from_home="1500" name="CMAC_basic" security_height="25">
+   CMAC is affiliated with the Model Aircraft Association of Australia
+   (MAAA), so MAAA rules apply. Specifically, use of Paparazzi at this
+   field must comply with MAAA's Self Guided Model Aircraft (SGMA)
+   rules, including:
+
+    * MAAA qualified safety pilot, line of sight
+    * FPV forbidden
+    * MTOW not greater than 5Kg
+    * Power not greater than .60 2 stroke engine (or equivalent)
+
+   In addition to the MAAA/SGMA rules, specific rules for this field:
+
+    * Flying West of the pilot's box is forbidden. In other words, no
+      closer to the Monaro Highway than the line of the Runway.
+    * Civil Aviation Safety Authority imposed ceiling of 400 feet
+    * Pilots must beware the Rescue Helicopter operations South West
+      of the CMAC site.
+
+   This filght plan uses waypoint "heights" (AGL) rather than altitudes
+   (MSL), so should be used in conjunction with SRTM data. It also assumes
+   take off / landing direction is to the North, which is the usual wind.
+-->
+<flight_plan
+	name="CMAC testing (Northerly)"
+	alt="670"
+	ground_alt="584"
+	lat0="-35.362660"
+	lon0="149.165283"
+	max_dist_from_home="1500"
+	security_height="25"
+	qfu="350" >
+
   <header>
 #include "subsystems/navigation/nav_line.h"
 #include "subsystems/datalink/datalink.h"
@@ -13,8 +46,8 @@
     <waypoint name="MOB" x="-312.6" y="-53.2"/>
     <waypoint name="S1" x="-418.7" y="137.5"/>
     <waypoint name="S2" x="-194.9" y="-258.2"/>
-    <waypoint alt="55.0" name="AF" x="5.1" y="-264.6"/>
-    <waypoint alt="0.0" name="TD" x="-11.4" y="-13.9"/>
+    <waypoint height="55.0" name="AF" x="5.1" y="-264.6"/>
+    <waypoint height="0.0" name="TD" x="-11.4" y="-13.9"/>
     <waypoint name="_BASELEG" x="-167.7" y="-267.6"/>
     <waypoint name="CLIMB" x="-40.2" y="212.3"/>
   </waypoints>
@@ -32,14 +65,14 @@
       <set value="1" var="kill_throttle"/>
       <attitude roll="0" throttle="0" vmode="throttle"/>
     </block>
-    <block group="home" key="t" name="Takeoff" strip_button="Takeoff (wp CLIMB)" strip_icon="takeoff.png">
+    <block group="home" key="t" name="Takeoff" strip_button="Takeoff (wp CLIMB)"  strip_icon="takeoff.png">
       <exception cond="GetPosAlt() > ground_alt+25" deroute="Standby"/>
       <set value="0" var="kill_throttle"/>
       <set value="0" var="autopilot_flight_time"/>
       <go from="HOME" pitch="15" throttle="1.0" vmode="throttle" wp="CLIMB"/>
     </block>
     <block group="home" key="<Control>a" name="Standby" strip_button="Standby" strip_icon="home.png">
-      <circle radius="-nav_radius" wp="STDBY"/>
+      <circle radius="nav_radius" wp="STDBY"/>
     </block>
     <block group="base_pattern" key="F8" name="Figure 8 around wp 1" strip_button="Figure 8 (wp 1-2)" strip_icon="eight.png">
       <eight center="1" radius="nav_radius" turn_around="2"/>
