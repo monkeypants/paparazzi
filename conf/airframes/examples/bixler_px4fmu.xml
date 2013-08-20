@@ -17,27 +17,31 @@ TODO:
     <target name="ap" board="px4fmu_1.7"/>
     <target name="sim" board="pc"/>
 
-    <!--subsystem name="radio_control" type="spektrum"/--><!-- broken -->
+    <!--subsystem name="radio_control" type="spektrum"/--><!-- broken? -->
     <subsystem name="radio_control" type="ppm"/>
     <subsystem name="telemetry" type="transparent"/>
     <!--
-      Fixed wing control subsystem
-      
-      type:
-        <default>: traditional, 
-        adaptive: adaptive horisontal control
-        new: adaptive horisontal + auto pitch & throttle
-        energy: like TECS (requires airspeed sensor)
+      TODO: experiment with "new" and "energy" control types,
+            once airspeed sensor is integrated.
     --> 
     <subsystem name="control"/>
     <subsystem name="imu" type="px4fmu_v1.7"/>
     <subsystem name="gps" type="ublox"/>
     <subsystem name="navigation"/>
 
+    <!-- TODO: am I sure these are what I want? -->
     <subsystem name="ahrs" type="float_dcm"/>
     <subsystem name="ins" type="alt_float"/>
   </firmware>
 
+
+  <!-- The rest (following) is coppied from the lisa_m Bixler example
+       airframe, and almost certainly requires tweaking.
+
+       TODO: add flaps
+       TODO: comission some channels for tuning
+       TODO: install a switch for lights
+  -->
   <!-- commands section -->
   <servos>
     <servo name="THROTTLE"      no="1" min="1120" neutral="1120" max="1920"/>
@@ -45,7 +49,6 @@ TODO:
     <servo name="RUDDER"        no="3" min="950"  neutral="1440" max="2050"/>
     <servo name="AILERON_RIGHT" no="4" min="1000" neutral="1500" max="2000"/>
     <servo name="AILERON_LEFT"  no="5" min="1000" neutral="1500" max="2000"/>
-    <!-- TODO: Flaps -->
   </servos>
 
   <commands>
@@ -53,7 +56,6 @@ TODO:
     <axis name="ROLL"     failsafe_value="0"/>
     <axis name="PITCH"    failsafe_value="0"/>
     <axis name="YAW"      failsafe_value="2000"/>
-    <!-- TODO: flaps -->
   </commands>
 
   <rc_commands>
@@ -61,7 +63,6 @@ TODO:
     <set command="PITCH"     value="@PITCH"/>
     <set command="THROTTLE"  value="@THROTTLE"/>
     <set command="YAW"       value="@YAW"/>
-    <!-- TODO: flaps -->
   </rc_commands>
 
   <section name="MIXER">
