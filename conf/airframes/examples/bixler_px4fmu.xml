@@ -17,7 +17,8 @@ TODO:
     <target name="ap" board="px4fmu_1.7"/>
     <target name="sim" board="pc"/>
 
-    <subsystem name="radio_control" type="spektrum"/>
+    <!--subsystem name="radio_control" type="spektrum"/--><!-- broken -->
+    <subsystem name="radio_control" type="ppm"/>
     <subsystem name="telemetry" type="transparent"/>
     <!--
       Fixed wing control subsystem
@@ -34,7 +35,7 @@ TODO:
     <subsystem name="navigation"/>
 
     <subsystem name="ahrs" type="float_dcm"/>
-    <!--subsystem name="ins" type="alt_float"/-->
+    <subsystem name="ins" type="alt_float"/>
   </firmware>
 
   <!-- commands section -->
