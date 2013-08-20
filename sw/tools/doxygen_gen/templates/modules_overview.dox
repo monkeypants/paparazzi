@@ -1,0 +1,21 @@
+/** @page {{ name }} {{ heading }}
+
+@tableofcontents
+The modules allow to add new code in a flexible way with initialisation, periodic and event functions without modifying the main AP loop.
+Also see http://paparazzi.enac.fr/wiki/Modules
+
+@section modules_list List of available modules
+{% for subsection in module_dirs.keys() %}
+@subsection modules_category_{{ subsection }} {{ subsection | replace("_"," ") | title }} modules
+{% for module in module_dirs[subsection] %}
+ - {{ module.name }} @subpage module__{{ module.name }}{% endfor %}
+
+{% endfor %}
+
+
+ */
+{% for module in modules %}
+{{ module.name }}
+{{ module.brief_description }}
+{{ module.detailed_description }}
+{% endfor %}
